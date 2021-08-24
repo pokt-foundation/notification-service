@@ -4,7 +4,8 @@
   "description": "notification-service for overruning relays on the pocket-network",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "fast-compile": "tsc -p tsconfig.json"
   },
   "repository": {
     "type": "git",
