@@ -1,0 +1,28 @@
+{
+  "name": "notification-service",
+  "version": "1.0.0",
+  "description": "notification-service for overruning relays on the pocket-network",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pokt-foundation/notification-service.git"
+  },
+  "keywords": [
+    "pocket-network"
+  ],
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/pokt-foundation/notification-service/issues"
+  },
+  "homepage": "https://github.com/pokt-foundation/notification-service#readme",
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.83",
+    "@types/node": "^16.7.1",
+    "aws-sdk": "^2.975.0",
+    "typescript": "^4.3.5"
+  }
+}
