@@ -25,5 +25,9 @@
     "@types/node": "^16.7.1",
     "aws-sdk": "^2.975.0",
     "typescript": "^4.3.5"
+  },
+  "dependencies": {
+    "@types/ioredis": "^4.27.0",
+    "ioredis": "^4.27.8"
   }
 }
