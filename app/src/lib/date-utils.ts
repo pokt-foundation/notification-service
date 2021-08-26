@@ -7,20 +7,6 @@ export function getUTCTimestamp(): string {
   return timestamp.toISOString()
 }
 
-export function getDaysFromNowUtcDate(daysAgo: number): string {
-  dayjs.extend(dayJsutcPlugin)
-
-  const dateDaysAgo = dayjs.utc().subtract(daysAgo, 'day')
-
-  const formattedTimestamp = `${dateDaysAgo.year()}-0${
-    dateDaysAgo.month() + 1
-  }-${
-    dateDaysAgo.date() < 10 ? `0${dateDaysAgo.date()}` : dateDaysAgo.date()
-  }T00:00:00+00:00`
-
-  return formattedTimestamp
-}
-
 export function getHoursFromNowUtcDate(hoursAgo: number): string {
   dayjs.extend(dayJsutcPlugin)
 
