@@ -33,7 +33,7 @@ Parameters:
 
 Globals:
   Function:
-    Timeout: 30
+    Timeout: 60
 
 Resources:
   NotifyEndpointUsage:
@@ -44,7 +44,7 @@ Resources:
       FunctionName: notify-endpoint-usage
       Description: Notifies of endpoints which overrun the allowed stake
       CodeUri: app/
-      Handler: notify-endpoint-usage/app.handler
+      Handler: dist/functions/notify-endpoint-usage/app.handler
       Runtime: nodejs12.x
       Environment:
         Variables:
