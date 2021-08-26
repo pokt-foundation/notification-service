@@ -21,6 +21,9 @@ Parameters:
   RedisPort:
     Type: String
     NoEcho: true
+  MongoDBConnectionString:
+    Type: String
+    NoEcho: true
 
 Globals:
   Function:
@@ -41,6 +44,7 @@ Resources:
         Variables:
           REDIS_HOST: !Ref RedisEndpoint
           REDIS_PORT: !Ref RedisPort
+          MONGODB_CONN_STR: !Ref MongoDBConnectionString
       Policies:
         - "AWSLambdaVPCAccessExecutionRole"
       VpcConfig:
