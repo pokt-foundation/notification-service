@@ -5,7 +5,9 @@ build-NotifyEndpointUsage:
 	npm run fast-compile
 	npm prune --production
 ifeq ($(OS),Windows_NT)
-	Xcopy /E * $(ARTIFACTS_DIR)
+	Xcopy /E dist/functions/notify-endpoint-usage $(ARTIFACTS_DIR)
+	Xcopy /E node_modules $(ARTIFACTS_DIR)
 else
-	cp -R * $(ARTIFACTS_DIR)
+	cp -R dist/functions/notify-endpoint-usage $(ARTIFACTS_DIR)
+	cp -R node_modules $(ARTIFACTS_DIR)
 endif
