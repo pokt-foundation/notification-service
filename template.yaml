@@ -30,6 +30,9 @@ Parameters:
   InfluxOrg:
     Type: String
     NoEcho: true
+  EmailApiKey:
+    Type: String
+    NoEcho: true
 
 Globals:
   Function:
@@ -48,6 +51,7 @@ Resources:
       Runtime: nodejs12.x
       Environment:
         Variables:
+          EMAIL_API_KEY: !Ref EmailApiKey
           INFLUX_ENDPOINT: !Ref InfluxEndpoint
           INFLUX_TOKEN: !Ref InfluxToken
           INFLUX_ORG: !Ref InfluxOrg
