@@ -30,6 +30,7 @@
     "@influxdata/influxdb-client": "^1.17.0",
     "@types/ioredis": "^4.27.0",
     "dayjs": "^1.10.6",
-    "ioredis": "^4.27.8"
+    "ioredis": "^4.27.8",
+    "mailgun-js": "^0.22.0"
   }
 }
