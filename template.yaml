@@ -24,10 +24,22 @@ Parameters:
   MongoDBConnectionString:
     Type: String
     NoEcho: true
+  InfluxEndpoint:
+    Type: String
+    NoEcho: true
+  InfluxToken:
+    Type: String
+    NoEcho: true
+  InfluxOrg:
+    Type: String
+    NoEcho: true
+  EmailApiKey:
+    Type: String
+    NoEcho: true
 
 Globals:
   Function:
-    Timeout: 30
+    Timeout: 60
 
 Resources:
   NotifyEndpointUsage:
@@ -38,10 +50,14 @@ Resources:
       FunctionName: notify-endpoint-usage
       Description: Notifies of endpoints which overrun the allowed stake
       CodeUri: app/
-      Handler: notify-endpoint-usage/app.handler
+      Handler: dist/functions/notify-endpoint-usage/app.handler
       Runtime: nodejs12.x
       Environment:
         Variables:
+          EMAIL_API_KEY: !Ref EmailApiKey
+          INFLUX_ENDPOINT: !Ref InfluxEndpoint
+          INFLUX_TOKEN: !Ref InfluxToken
+          INFLUX_ORG: !Ref InfluxOrg
           REDIS_HOST: !Ref RedisEndpoint
           REDIS_PORT: !Ref RedisPort
           MONGODB_CONN_STR: !Ref MongoDBConnectionString
