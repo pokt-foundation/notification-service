@@ -11,12 +11,9 @@ export async function getUsageData() {
     stop: getUTCTimestamp()
   }))
 
-  console.log(usage)
-
   return usage
 }
 
 exports.handler = async () => {
   const redis = new Redis(parseInt(redisPort), redisHost)
-  await getUsageData()
 };
