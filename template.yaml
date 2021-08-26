@@ -21,6 +21,15 @@ Parameters:
   RedisPort:
     Type: String
     NoEcho: true
+  InfluxEndpoint:
+    Type: String
+    NoEcho: true
+  InfluxToken:
+    Type: String
+    NoEcho: true
+  InfluxOrg:
+    Type: String
+    NoEcho: true
 
 Globals:
   Function:
@@ -39,6 +48,9 @@ Resources:
       Runtime: nodejs12.x
       Environment:
         Variables:
+          INFLUX_ENDPOINT: !Ref InfluxEndpoint
+          INFLUX_TOKEN: !Ref InfluxToken
+          INFLUX_ORG: !Ref InfluxOrg
           REDIS_HOST: !Ref RedisEndpoint
           REDIS_PORT: !Ref RedisPort
       Policies:

@@ -9,5 +9,6 @@ ifeq ($(OS),Windows_NT)
 	Xcopy /E node_modules $(ARTIFACTS_DIR)
 else
 	cp -R dist/functions/notify-endpoint-usage $(ARTIFACTS_DIR)
+	cp -R dist/lib $(ARTIFACTS_DIR)
 	cp -R node_modules $(ARTIFACTS_DIR)
 endif

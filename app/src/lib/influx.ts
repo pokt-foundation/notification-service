@@ -30,3 +30,4 @@ total = from(bucket: "mainnetRelay1d")
 |> yield()
 `
 }
+
