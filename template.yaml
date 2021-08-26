@@ -1,7 +1,7 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  notifications-service
+  app-notification-service
 
   SAM Template for notification service
   
@@ -12,8 +12,8 @@ Parameters:
   SecurityGroupID:
     Type: String
     NoEcho: true
-  SubnetID:
-    Type: String
+  SubnetIDs:
+    Type: CommaDelimitedList
     NoEcho: true
   RedisEndpoint:
     Type: String
@@ -22,20 +22,20 @@ Parameters:
     Type: String
     NoEcho: true
 
-# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
 Globals:
   Function:
-    Timeout: 60
+    Timeout: 30
 
 Resources:
   NotifyEndpointUsage:
-    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Type: AWS::Serverless::Function 
     Metadata:
       BuildMethod: makefile
     Properties:
       FunctionName: notify-endpoint-usage
+      Description: Notifies of endpoints which overrun the allowed stake
       CodeUri: app/
-      Handler: dist/functions/notify-endpoint-usage/app.handler
+      Handler: notify-endpoint-usage/app.handler
       Runtime: nodejs12.x
       Environment:
         Variables:
@@ -44,13 +44,10 @@ Resources:
       Policies:
         - "AWSLambdaVPCAccessExecutionRole"
       VpcConfig:
-        SecurityGroupIds: !Ref SecurityGroupID
-        SubnetIds:
-          - !Ref SubnetID
+        SecurityGroupIds: 
+         - !Ref SecurityGroupID
+        SubnetIds: !Ref SubnetIDs
 Outputs:
-  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
-  # Find out more about other implicit resources you can reference within SAM
-  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
   NotifyEndpointUsage:
     Description: "Notify Endpoint Usage Lambda Function ARN"
     Value: !GetAtt NotifyEndpointUsage.Arn
