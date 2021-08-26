@@ -22,12 +22,15 @@
   "homepage": "https://github.com/pokt-foundation/notification-service#readme",
   "devDependencies": {
     "@types/aws-lambda": "^8.10.83",
+    "@types/axios": "^0.14.0",
+    "@types/ioredis": "^4.27.0",
+    "@types/mongoose": "^5.11.97",
     "@types/node": "^16.7.1",
     "aws-sdk": "^2.975.0",
     "typescript": "^4.3.5"
   },
   "dependencies": {
-    "@types/ioredis": "^4.27.0",
-    "ioredis": "^4.27.8"
+    "ioredis": "^4.27.8",
+    "mongoose": "^6.0.1"
   }
 }
