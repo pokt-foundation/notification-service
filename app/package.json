@@ -24,6 +24,7 @@
     "@types/aws-lambda": "^8.10.83",
     "@types/axios": "^0.14.0",
     "@types/ioredis": "^4.27.0",
+    "@types/mailgun-js": "^0.22.12",
     "@types/mongoose": "^5.11.97",
     "@types/node": "^16.7.1",
     "aws-sdk": "^2.975.0",
