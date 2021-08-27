@@ -69,6 +69,7 @@ Resources:
         SecurityGroupIds: 
          - !Ref SecurityGroupID
         SubnetIds: !Ref SubnetIDs
+
 Outputs:
   NotifyEndpointUsage:
     Description: "Notify Endpoint Usage Lambda Function ARN"
