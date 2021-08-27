@@ -12,6 +12,8 @@ Parameters:
   SecurityGroupID:
     Type: String
     NoEcho: true
+  # The subnets must be connected through the same vpc as the redis instance (if using elasticache) 
+  # and a NAT Gateway in order to have cache and internet access
   SubnetIDs:
     Type: CommaDelimitedList
     NoEcho: true
@@ -19,6 +21,9 @@ Parameters:
     Type: String
     NoEcho: true
   RedisPort:
+    Type: String
+    NoEcho: true
+  MongoDBConnectionString:
     Type: String
     NoEcho: true
   InfluxEndpoint:
@@ -57,6 +62,7 @@ Resources:
           INFLUX_ORG: !Ref InfluxOrg
           REDIS_HOST: !Ref RedisEndpoint
           REDIS_PORT: !Ref RedisPort
+          MONGODB_CONN_STR: !Ref MongoDBConnectionString
       Policies:
         - "AWSLambdaVPCAccessExecutionRole"
       VpcConfig:

@@ -25,7 +25,7 @@ export default class MailgunService {
 
   constructor() {
     this.mailService = mailgun({
-      apiKey: process.env.EMAIL_API_KEY,
+      apiKey: process.env.EMAIL_API_KEY ?? '',
       domain: DOMAIN,
     })
   }
@@ -39,6 +39,7 @@ export default class MailgunService {
     templateName: string
     toEmail: string
   }): Promise<messages.SendResponse> {
+    // @ts-ignore
     const [template, subject] = WHITELISTED_TEMPLATES.get(templateName)
     const message = {
       from: FROM_EMAIL,
