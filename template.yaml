@@ -12,6 +12,8 @@ Parameters:
   SecurityGroupID:
     Type: String
     NoEcho: true
+  # The subnets must be connected through the same vpc as the redis instance (if using elasticache) 
+  # and a NAT Gateway in order to have cache and internet access
   SubnetIDs:
     Type: CommaDelimitedList
     NoEcho: true
