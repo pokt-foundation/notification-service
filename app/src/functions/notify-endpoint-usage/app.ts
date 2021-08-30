@@ -1,6 +1,9 @@
 import { influx, buildAppUsageQuery } from "../../lib/influx";
 import { getUTCTimestamp, getHoursFromNowUtcDate } from "../../lib/date-utils";
-import { ApplicationData, GetUsageDataQuery } from "../../models/types";
+import connect from "../../lib/db"
+import { ApplicationData, ExtendedApplicationData, GetUsageDataQuery } from "../../models/types";
+import Application from '../../models/Application'
+import User from '../../models/User'
 import { getApplicationNetworkData } from "../../lib/pocket";
 import { QueryAppResponse, StakingStatus } from '@pokt-network/pocket-js';
 
@@ -46,7 +49,7 @@ function getRelaysUsed(networkData: QueryAppResponse[], influxData: GetUsageData
       status,
       maxRelays,
       relaysUsed: influxApp.relays,
-      percertageUsed: parseFloat(((influxApp.relays / maxRelays) * 100).toFixed(2))
+      percentageUsed: parseFloat(((influxApp.relays / maxRelays) * 100).toFixed(2))
     }
 
     applicationsData.push(applicationData)
@@ -55,7 +58,39 @@ function getRelaysUsed(networkData: QueryAppResponse[], influxData: GetUsageData
   return applicationsData
 }
 
+async function getUserThresholdExceeded(appData: ApplicationData[]) {
+  const extendedAppData = await Promise.allSettled(appData.map(async app => {
+    const { address } = app
+    const dbApplication = await Application.findOne({ "freeTierApplicationAccount.address": address })
+
+    if (!dbApplication) {
+      return app
+    }
+
+    const appUser = typeof dbApplication.user === 'string' ?
+      await User.findOne({ email: dbApplication.user }) :
+      await User.findById(dbApplication.user)
+
+    if (!appUser) {
+      return app
+    }
+
+    // TODO: Compare threshold exceeded with new system
+
+    return {
+      ...app,
+      email: appUser.email,
+      thresholdExceeded: 75
+    } as ExtendedApplicationData
+  }))
+
+  return extendedAppData
+}
+
+
 exports.handler = async () => {
+  await connect()
+
   const usage = await getUsageData();
 
   const networkApps = Promise.allSettled(
@@ -67,5 +102,7 @@ exports.handler = async () => {
   // @ts-ignore
   const apps = (await networkApps).map((data) => data.value)
 
-  return getRelaysUsed(apps, usage);
+  const appData = getRelaysUsed(apps, usage);
+
+  return await getUserThresholdExceeded(appData)
 };
