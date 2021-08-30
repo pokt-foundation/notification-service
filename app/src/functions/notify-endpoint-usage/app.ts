@@ -7,6 +7,8 @@ import { QueryAppResponse, StakingStatus } from '@pokt-network/pocket-js';
 const redisHost = process.env.REDIS_HOST || "";
 const redisPort = process.env.REDIS_PORT || "";
 
+const maxRetries = process.env.MAX_RETRIES || 3;
+
 export async function getUsageData(): Promise<GetUsageDataQuery[]> {
   const usage = (await influx.collectRows(
     buildAppUsageQuery({
@@ -55,17 +57,42 @@ function getRelaysUsed(networkData: QueryAppResponse[], influxData: GetUsageData
   return applicationsData
 }
 
+async function getNetworkData(influxData: GetUsageDataQuery[]): Promise<QueryAppResponse[]> {
+  const sleep = (seconds: number, factor: number) => new Promise(resolve => setTimeout(resolve, (seconds ** factor) * 1000))
+
+  const networkApps: QueryAppResponse[] = []
+  const failedApps: GetUsageDataQuery[] = []
+
+  for (let i = 0; i < maxRetries; i++) {
+    if (i > 0) {
+      await sleep(2, i)
+    }
+
+    const appsToQuery = i === 0 ? influxData : failedApps
+    const networkResponse = await Promise.allSettled(
+      appsToQuery.map((app) => getApplicationNetworkData(app.applicationPublicKey))
+    );
+
+    networkResponse.forEach((app, idx) => {
+      if (app.status === 'fulfilled' && app.value !== undefined) {
+        networkApps.push(app.value)
+      } else {
+        failedApps.push(appsToQuery[idx])
+      }
+    })
+
+    if (networkApps.length === influxData.length) {
+      break
+    }
+  }
+
+  return networkApps
+}
+
 exports.handler = async () => {
   const usage = await getUsageData();
 
-  const networkApps = Promise.allSettled(
-    usage.map((app) => getApplicationNetworkData(app.applicationPublicKey))
-  );
-
-  // TODO: Retry on error
-
-  // @ts-ignore
-  const apps = (await networkApps).map((data) => data.value)
+  const apps = await getNetworkData(usage)
 
   return getRelaysUsed(apps, usage);
 };
