@@ -16,7 +16,7 @@ export function buildAppUsageQuery({
   stop: string,
 }) {
   return `
-total = from(bucket: "mainnetRelay1d")
+total = from(bucket: "mainnetRelay60m")
 |> range(start: ${start}, stop: ${stop})
 |> filter(fn: (r) =>
   r._measurement == "relay" and
