@@ -1,5 +1,5 @@
 import { Configuration, HttpRpcProvider, Pocket, PocketRpcProvider, QueryAppResponse, RpcError, typeGuard } from "@pokt-network/pocket-js"
-import { getAddressFromPublicKey } from '../utils/conversions';
+import { getAddressFromPublicKey } from '../utils/crypto';
 
 const blockTime = process.env.BLOCK_TIME
 
