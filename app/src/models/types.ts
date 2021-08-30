@@ -16,5 +16,10 @@ export type ApplicationData = {
   status: StakingStatus,
   maxRelays: number
   relaysUsed: number,
-  percertageUsed: number
+  percentageUsed: number
+}
+
+export type ExtendedApplicationData = ApplicationData & {
+  email: string
+  thresholdExceeded: number
 }
