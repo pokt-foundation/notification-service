@@ -1,11 +1,13 @@
 import { influx, buildAppUsageQuery } from "../../lib/influx";
 import { getUTCTimestamp, getHoursFromNowUtcDate } from "../../lib/date-utils";
 import connect from "../../lib/db"
-import { ApplicationData, ExtendedApplicationData, GetUsageDataQuery } from "../../models/types";
+import { ApplicationData, ExtendedApplicationData, ExtendedLoadBalancerData, GetUsageDataQuery } from "../../models/types";
 import Application from '../../models/Application'
 import User from '../../models/User'
 import { getApplicationNetworkData } from "../../lib/pocket";
-import { QueryAppResponse, StakingStatus } from '@pokt-network/pocket-js';
+import { QueryAppResponse } from '@pokt-network/pocket-js';
+import ApplicationModel, { IApplication } from "../../models/Application";
+import LoadBalancerModel, { ILoadBalancer } from "../../models/LoadBalancer";
 
 const redisHost = process.env.REDIS_HOST || "";
 const redisPort = process.env.REDIS_PORT || "";
@@ -121,6 +123,54 @@ async function getUserThresholdExceeded(appData: ApplicationData[]) {
   return extendedAppData
 }
 
+async function getLoadBalancerThreshold(appData: ApplicationData[], dbApps: IApplication[], loadBalancers: ILoadBalancer[]): Promise<ExtendedLoadBalancerData> {
+  const extendedLBData: ExtendedLoadBalancerData = {}
+
+  appData.forEach(async app => {
+    const dbApp = dbApps.find((data => data.freeTierApplicationAccount.address === app.address))
+
+    if (dbApp === undefined) {
+      return
+    }
+
+    const lb = loadBalancers.find((lb) => lb.applicationIDs.findIndex((appID) =>
+      appID === dbApp?._id.toString()
+    ) > -1)
+
+    // TODO: Defined behavior for apps that don't belong to any load balancer
+    if (lb === undefined) {
+      return
+    }
+
+    const { _id: lbID, user: userID, name, applicationIDs } = lb
+
+    if (lbID in extendedLBData) {
+      const extendedLB = extendedLBData[lbID]
+      extendedLB.maxRelays += app.maxRelays
+      extendedLB.relaysUsed += app.relaysUsed
+      extendedLB.applicationsRelayed.push({ ...app, id: dbApp._id })
+    } else {
+      /// @ts-ignore
+      extendedLBData[lbID] = { userID, name, applicationIDs }
+
+      const extendedLB = extendedLBData[lbID]
+      extendedLB.maxRelays = app.maxRelays
+      extendedLB.relaysUsed = app.relaysUsed
+
+      // @ts-ignore
+      extendedLB.applicationsRelayed = [{ ...app, id: dbApp._id }]
+    }
+  })
+
+  for (const id in extendedLBData) {
+    const lb = extendedLBData[id]
+    const { relaysUsed, maxRelays } = lb
+    extendedLBData[id].percentageUsed = parseFloat(((relaysUsed / maxRelays) * 100).toFixed(2))
+  }
+
+  return extendedLBData
+}
+
 exports.handler = async () => {
   await connect()
 
@@ -130,5 +180,13 @@ exports.handler = async () => {
 
   const appData = getRelaysUsed(apps, usage)
 
-  return await getUserThresholdExceeded(appData)
+  // TODO: Cache DB application data 
+  const dbApps = await ApplicationModel.find()
+
+  // TODO: Cache Load Balancer data
+  const loadBalancers = await LoadBalancerModel.find()
+
+  const lbData = await getLoadBalancerThreshold(appData, dbApps, loadBalancers)
+  const key = Object.keys(lbData)[0]
+  return { [key]: lbData[key] }
 }
