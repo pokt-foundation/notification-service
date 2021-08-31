@@ -8,11 +8,15 @@ import { getApplicationNetworkData } from "../../lib/pocket";
 import { QueryAppResponse } from '@pokt-network/pocket-js';
 import ApplicationModel, { IApplication } from "../../models/Application";
 import LoadBalancerModel, { ILoadBalancer } from "../../models/LoadBalancer";
+import Redis from 'ioredis'
 
 const redisHost = process.env.REDIS_HOST || "";
 const redisPort = process.env.REDIS_PORT || "";
 
 const maxRetries = process.env.MAX_RETRIES || 3;
+
+console.log(redisHost, redisPort)
+const redis = new Redis(parseInt(redisPort), redisHost)
 
 export async function getUsageData(): Promise<GetUsageDataQuery[]> {
   const usage = (await influx.collectRows(
@@ -129,7 +133,7 @@ async function getLoadBalancerThreshold(appData: ApplicationData[], dbApps: IApp
   const extendedLBData: ExtendedLoadBalancerData = {}
 
   appData.forEach(async app => {
-    const dbApp = dbApps.find((data => data.freeTierApplicationAccount.address === app.address))
+    const dbApp = dbApps.find((data => data.freeTierApplicationAccount?.address === app.address))
 
     if (dbApp === undefined) {
       return
@@ -176,17 +180,32 @@ async function getLoadBalancerThreshold(appData: ApplicationData[], dbApps: IApp
 exports.handler = async () => {
   await connect()
 
+  // TODO: Handle retry on timeout
   const usage = await getUsageData();
 
   const apps = await getNetworkData(usage)
 
   const appData = getRelaysUsed(apps, usage)
 
-  // TODO: Cache DB application data 
-  const dbApps = await ApplicationModel.find()
+  let dbApps: IApplication[]
 
-  // TODO: Cache Load Balancer data
-  const loadBalancers = await LoadBalancerModel.find()
+  const cachedApps = await redis.get('nt-applications')
+  if (!cachedApps) {
+    dbApps = await ApplicationModel.find()
+    await redis.set('nt-applications', JSON.stringify(dbApps), 'EX', 1800)
+  } else {
+    dbApps = JSON.parse(cachedApps)
+  }
+
+  let loadBalancers: ILoadBalancer[]
+
+  const cachedLoadBalancers = await redis.get('nt-loadBalancers')
+  if (!cachedLoadBalancers) {
+    loadBalancers = await LoadBalancerModel.find()
+    await redis.set('nt-loadBalancers', JSON.stringify(loadBalancers), 'EX', 1800)
+  } else {
+    loadBalancers = JSON.parse(cachedLoadBalancers)
+  }
 
   const lbData = await getLoadBalancerThreshold(appData, dbApps, loadBalancers)
   const key = Object.keys(lbData)[0]
