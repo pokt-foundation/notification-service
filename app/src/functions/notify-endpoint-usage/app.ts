@@ -1,22 +1,23 @@
 import { influx, buildAppUsageQuery } from "../../lib/influx";
 import { getUTCTimestamp, getHoursFromNowUtcDate } from "../../lib/date-utils";
 import connect from "../../lib/db"
-import { ApplicationData, ExtendedApplicationData, ExtendedLoadBalancerData, GetUsageDataQuery } from "../../models/types";
-import Application from '../../models/Application'
+import { ApplicationData, ExtendedApplicationData, ExtendedLoadBalancer, ExtendedLoadBalancerData, GetUsageDataQuery } from "../../models/types";
 import User from '../../models/User'
-import { getApplicationNetworkData } from "../../lib/pocket";
-import { QueryAppResponse } from '@pokt-network/pocket-js';
+import { getAppsInNetwork } from "../../lib/pocket";
+import { Application } from '@pokt-network/pocket-js';
 import ApplicationModel, { IApplication } from "../../models/Application";
 import LoadBalancerModel, { ILoadBalancer } from "../../models/LoadBalancer";
 import Redis from 'ioredis'
+import { retryEvery } from "../../utils/retry";
 
 const redisHost = process.env.REDIS_HOST || "";
 const redisPort = process.env.REDIS_PORT || "";
 
 const maxRetries = process.env.MAX_RETRIES || 3;
 
-console.log(redisHost, redisPort)
 const redis = new Redis(parseInt(redisPort), redisHost)
+
+const calculateRelaysPercentage = (relays: number, maxRelays: number) => parseFloat(((relays / maxRelays) * 100).toFixed(2))
 
 export async function getUsageData(): Promise<GetUsageDataQuery[]> {
   const usage = (await influx.collectRows(
@@ -36,7 +37,7 @@ export async function getUsageData(): Promise<GetUsageDataQuery[]> {
   return appData as GetUsageDataQuery[];
 }
 
-function getRelaysUsed(networkData: QueryAppResponse[], influxData: GetUsageDataQuery[]): ApplicationData[] {
+function getRelaysUsed(networkData: Map<string, Application>, influxData: GetUsageDataQuery[]): ApplicationData[] {
   const applicationsData: ApplicationData[] = []
 
   const influxDataMap: { [any: string]: GetUsageDataQuery } = influxData.reduce((acc, data) => {
@@ -45,21 +46,28 @@ function getRelaysUsed(networkData: QueryAppResponse[], influxData: GetUsageData
     return acc
   }, {})
 
-  networkData.forEach(network => {
-    const { public_key: publicKey, address, chains, staked_tokens: stakedTokens, jailed, status, max_relays: maxRelays } = network.toJSON()
+  influxData.forEach(entry => {
+    const networkApp = networkData.get(entry.applicationPublicKey)
 
-    const influxApp = influxDataMap[publicKey]
+    if (networkApp === undefined) {
+      // TODO: Proper log
+      return
+    }
+
+    const { publicKey, address, chains, stakedTokens, jailed, status, maxRelays } = networkApp
+
+    const { relays: relaysUsed } = influxDataMap[publicKey]
 
     const applicationData: ApplicationData = {
       publicKey,
       address,
       chains,
-      stakedTokens,
+      stakedTokens: Number(stakedTokens),
       jailed,
       status,
-      maxRelays,
-      relaysUsed: influxApp.relays,
-      percentageUsed: parseFloat(((influxApp.relays / maxRelays) * 100).toFixed(2))
+      maxRelays: Number(maxRelays),
+      relaysUsed,
+      percentageUsed: calculateRelaysPercentage(relaysUsed, Number(maxRelays))
     }
 
     applicationsData.push(applicationData)
@@ -68,42 +76,10 @@ function getRelaysUsed(networkData: QueryAppResponse[], influxData: GetUsageData
   return applicationsData
 }
 
-async function getNetworkData(influxData: GetUsageDataQuery[]): Promise<QueryAppResponse[]> {
-  const sleep = (seconds: number, factor: number) => new Promise(resolve => setTimeout(resolve, (seconds ** factor) * 1000))
-
-  const networkApps: QueryAppResponse[] = []
-  const failedApps: GetUsageDataQuery[] = []
-
-  for (let i = 0; i < maxRetries; i++) {
-    if (i > 0) {
-      await sleep(2, i)
-    }
-
-    const appsToQuery = i === 0 ? influxData : failedApps
-    const networkResponse = await Promise.allSettled(
-      appsToQuery.map((app) => getApplicationNetworkData(app.applicationPublicKey))
-    );
-
-    networkResponse.forEach((app, idx) => {
-      if (app.status === 'fulfilled' && app.value !== undefined) {
-        networkApps.push(app.value)
-      } else {
-        failedApps.push(appsToQuery[idx])
-      }
-    })
-
-    if (networkApps.length === influxData.length) {
-      break
-    }
-  }
-
-  return networkApps
-}
-
 async function getUserThresholdExceeded(appData: ApplicationData[]) {
   const extendedAppData = await Promise.allSettled(appData.map(async app => {
     const { address } = app
-    const dbApplication = await Application.findOne({ "freeTierApplicationAccount.address": address })
+    const dbApplication = await ApplicationModel.findOne({ "freeTierApplicationAccount.address": address })
 
     if (!dbApplication) {
       return app
@@ -129,8 +105,27 @@ async function getUserThresholdExceeded(appData: ApplicationData[]) {
   return extendedAppData
 }
 
-async function getLoadBalancerThreshold(appData: ApplicationData[], dbApps: IApplication[], loadBalancers: ILoadBalancer[]): Promise<ExtendedLoadBalancerData> {
-  const extendedLBData: ExtendedLoadBalancerData = {}
+async function getLoadBalancerThreshold(appData: ApplicationData[], dbApps: IApplication[], loadBalancers: ILoadBalancer[], networkApps: Map<string, Application>): Promise<ExtendedLoadBalancer> {
+  const extendedLBData: ExtendedLoadBalancer = {}
+
+  const getInactiveAppRelays = (loadBalancer: ExtendedLoadBalancerData): number => {
+    const inactiveApps = loadBalancer.applicationIDs.filter(id =>
+      !loadBalancer.activeApplications.some(app => app.id === id))
+
+    const maxUnusedRelays = inactiveApps.reduce((acc, curr) => {
+      const app = dbApps.find((data => data._id.toString() === curr))
+      if (app === undefined) {
+        return acc
+      }
+      const networkInfo = networkApps.get(app?.freeTierApplicationAccount.publicKey ?? '')
+      if (networkInfo === undefined) {
+        return acc
+      }
+      return acc + Number(networkInfo.maxRelays)
+    }, 0)
+
+    return maxUnusedRelays
+  }
 
   appData.forEach(async app => {
     const dbApp = dbApps.find((data => data.freeTierApplicationAccount?.address === app.address))
@@ -143,7 +138,7 @@ async function getLoadBalancerThreshold(appData: ApplicationData[], dbApps: IApp
       appID === dbApp?._id.toString()
     ) > -1)
 
-    // TODO: Defined behavior for apps that don't belong to any load balancer
+    // TODO: Define behavior for apps that don't belong to any load balancer
     if (lb === undefined) {
       return
     }
@@ -154,24 +149,25 @@ async function getLoadBalancerThreshold(appData: ApplicationData[], dbApps: IApp
       const extendedLB = extendedLBData[lbID]
       extendedLB.maxRelays += app.maxRelays
       extendedLB.relaysUsed += app.relaysUsed
-      extendedLB.applicationsRelayed.push({ ...app, id: dbApp._id })
+      extendedLB.activeApplications.push({ ...app, id: dbApp._id })
     } else {
       /// @ts-ignore
-      extendedLBData[lbID] = { userID, name, applicationIDs }
+      extendedLBData[lbID] = { userID, name, applicationIDs, id: lbID }
 
       const extendedLB = extendedLBData[lbID]
       extendedLB.maxRelays = app.maxRelays
       extendedLB.relaysUsed = app.relaysUsed
 
       // @ts-ignore
-      extendedLB.applicationsRelayed = [{ ...app, id: dbApp._id }]
+      extendedLB.activeApplications = [{ ...app, id: dbApp._id.toString() }]
     }
   })
 
   for (const id in extendedLBData) {
     const lb = extendedLBData[id]
+    lb.maxRelays += getInactiveAppRelays(lb)
     const { relaysUsed, maxRelays } = lb
-    extendedLBData[id].percentageUsed = parseFloat(((relaysUsed / maxRelays) * 100).toFixed(2))
+    extendedLBData[id].percentageUsed = calculateRelaysPercentage(relaysUsed, maxRelays)
   }
 
   return extendedLBData
@@ -183,9 +179,10 @@ exports.handler = async () => {
   // TODO: Handle retry on timeout
   const usage = await getUsageData();
 
-  const apps = await getNetworkData(usage)
+  const networkApps: Map<string, Application> = new Map<string, Application>()
+    ; (await retryEvery(getAppsInNetwork) as Application[]).forEach(app => networkApps.set(app.publicKey, app))
 
-  const appData = getRelaysUsed(apps, usage)
+  const appData = getRelaysUsed(networkApps, usage)
 
   let dbApps: IApplication[]
 
@@ -207,7 +204,7 @@ exports.handler = async () => {
     loadBalancers = JSON.parse(cachedLoadBalancers)
   }
 
-  const lbData = await getLoadBalancerThreshold(appData, dbApps, loadBalancers)
-  const key = Object.keys(lbData)[0]
-  return { [key]: lbData[key] }
+  const lbData = await getLoadBalancerThreshold(appData, dbApps, loadBalancers, networkApps)
+
+  return { 'message': 'ok' }
 }

@@ -25,15 +25,19 @@ export type ExtendedApplicationData = ApplicationData & {
   thresholdExceeded: number
 }
 
+type ActiveApplications = ApplicationData & { id: string }
+
 export type ExtendedLoadBalancerData = {
-  [any: string]: {
-    id: string
-    userID: string,
-    name: string,
-    applicationIDs: string[]
-    percentageUsed: number
-    maxRelays: number,
-    relaysUsed: number
-    applicationsRelayed: ApplicationData & { id: string }[]
-  }
+  id: string
+  userID: string,
+  name: string,
+  applicationIDs: string[]
+  percentageUsed: number
+  maxRelays: number,
+  relaysUsed: number
+  activeApplications: ActiveApplications[]
+}
+
+export type ExtendedLoadBalancer = {
+  [any: string]: ExtendedLoadBalancerData
 }
