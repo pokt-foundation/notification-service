@@ -2,7 +2,7 @@ import { StakingStatus } from "@pokt-network/pocket-js"
 import { ILoadBalancer } from './LoadBalancer';
 
 export type GetUsageDataQuery = {
-  relays: number,
+  relays: BigInt,
   applicationPublicKey: string,
   result: string,
   table: number
@@ -12,11 +12,11 @@ export type ApplicationData = {
   publicKey: string
   address: string
   chains: string[],
-  stakedTokens: number,
+  stakedTokens: BigInt,
   jailed: boolean,
   status: StakingStatus,
-  maxRelays: number
-  relaysUsed: number,
+  maxRelays: BigInt
+  relaysUsed: BigInt,
   percentageUsed: number
 }
 
@@ -32,8 +32,8 @@ export type ExtendedLoadBalancerData = {
     name: string,
     applicationIDs: string[]
     percentageUsed: number
-    maxRelays: number,
-    relaysUsed: number
+    maxRelays: BigInt,
+    relaysUsed: BigInt
     applicationsRelayed: ApplicationData & { id: string }[]
   }
 }
