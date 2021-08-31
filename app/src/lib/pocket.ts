@@ -1,4 +1,4 @@
-import { Configuration, HttpRpcProvider, Pocket, PocketRpcProvider, QueryAppResponse, RpcError, typeGuard } from "@pokt-network/pocket-js"
+import { Application, Configuration, HttpRpcProvider, Pocket, PocketRpcProvider, QueryAppResponse, QueryAppsResponse, RpcError, typeGuard } from "@pokt-network/pocket-js"
 import { getAddressFromPublicKey } from '../utils/crypto';
 
 const blockTime = process.env.BLOCK_TIME
@@ -53,4 +53,35 @@ export async function getApplicationNetworkData(publicKey: string): Promise<Quer
   }
 
   return rpcResponse
+}
+
+export async function getAppsInNetwork(): Promise<Application[]> {
+  let page = 1
+  const applicationsList: Application[] = []
+  const perPage = 100
+  const rpcProvider = getRPCProvider()
+  const pocketInstance = new Pocket(getPocketDispatchers(), undefined, POCKET_CONFIGURATION)
+
+  const rpcResponse = await pocketInstance.rpc(rpcProvider)?.query.getApps(undefined, BigInt(0), undefined, page, perPage)
+
+  if (typeGuard(rpcResponse, RpcError)) {
+    throw new Error(rpcResponse.message)
+  }
+
+  const totalPages = rpcResponse?.totalPages || 1
+
+  while (page <= totalPages) {
+    const response = await pocketInstance.rpc(rpcProvider)?.query.getApps(undefined, BigInt(0), undefined, page, perPage)
+
+    page++
+    if (response instanceof RpcError) {
+      page = totalPages
+      break
+    }
+    response?.applications.forEach((app) => {
+      applicationsList.push(app)
+    })
+  }
+
+  return applicationsList
 }
