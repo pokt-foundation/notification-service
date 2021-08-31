@@ -35,14 +35,16 @@ export async function getUsageData(): Promise<GetUsageDataQuery[]> {
 function getRelaysUsed(networkData: QueryAppResponse[], influxData: GetUsageDataQuery[]): ApplicationData[] {
   const applicationsData: ApplicationData[] = []
 
+  const influxDataMap: { [any: string]: GetUsageDataQuery } = influxData.reduce((acc, data) => {
+    // @ts-ignore
+    acc[data.applicationPublicKey] = data
+    return acc
+  }, {})
+
   networkData.forEach(network => {
     const { public_key: publicKey, address, chains, staked_tokens: stakedTokens, jailed, status, max_relays: maxRelays } = network.toJSON()
 
-    const influxApp = influxData.find(data => data.applicationPublicKey === publicKey)
-
-    if (influxApp === undefined) {
-      return
-    }
+    const influxApp = influxDataMap[publicKey]
 
     const applicationData: ApplicationData = {
       publicKey,
