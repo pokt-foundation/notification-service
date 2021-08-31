@@ -1,7 +1,7 @@
 import { influx, buildAppUsageQuery } from "../../lib/influx";
 import { getUTCTimestamp, getHoursFromNowUtcDate } from "../../lib/date-utils";
 import connect from "../../lib/db"
-import { ApplicationData, ExtendedApplicationData, ExtendedLoadBalancerData, GetUsageDataQuery } from "../../models/types";
+import { ApplicationData, ExtendedApplicationData, ExtendedLoadBalancerData, ExtendedLoadBalancer, GetUsageDataQuery } from "../../models/types";
 import User from '../../models/User'
 import { getApplicationNetworkData, getAppsInNetwork } from "../../lib/pocket";
 import { QueryAppResponse, Application } from '@pokt-network/pocket-js';
@@ -14,7 +14,7 @@ const redisPort = process.env.REDIS_PORT || "";
 
 const maxRetries = process.env.MAX_RETRIES || 3;
 
-const calculateRelaysPercentage = (relays: BigInt, maxRelays: BigInt) => parseFloat(((Number(relays) / Number(maxRelays)) * 100).toFixed(2))
+const calculateRelaysPercentage = (relays: number, maxRelays: number) => parseFloat(((relays / maxRelays) * 100).toFixed(2))
 
 export async function getUsageData(): Promise<GetUsageDataQuery[]> {
   const usage = (await influx.collectRows(
@@ -25,7 +25,7 @@ export async function getUsageData(): Promise<GetUsageDataQuery[]> {
   )) as unknown as any[];
 
   const appData = usage.map((data: any) => ({
-    relays: BigInt(data._value),
+    relays: data._value,
     applicationPublicKey: data.applicationPublicKey,
     result: data.result,
     table: data.table,
@@ -59,12 +59,12 @@ function getRelaysUsed(networkData: Map<string, Application>, influxData: GetUsa
       publicKey,
       address,
       chains,
-      stakedTokens,
+      stakedTokens: Number(stakedTokens),
       jailed,
       status,
-      maxRelays,
+      maxRelays: Number(maxRelays),
       relaysUsed,
-      percentageUsed: calculateRelaysPercentage(relaysUsed, maxRelays)
+      percentageUsed: calculateRelaysPercentage(relaysUsed, Number(maxRelays))
     }
 
     applicationsData.push(applicationData)
@@ -72,7 +72,6 @@ function getRelaysUsed(networkData: Map<string, Application>, influxData: GetUsa
 
   return applicationsData
 }
-
 
 async function getUserThresholdExceeded(appData: ApplicationData[]) {
   const extendedAppData = await Promise.allSettled(appData.map(async app => {
@@ -103,8 +102,27 @@ async function getUserThresholdExceeded(appData: ApplicationData[]) {
   return extendedAppData
 }
 
-async function getLoadBalancerThreshold(appData: ApplicationData[], dbApps: IApplication[], loadBalancers: ILoadBalancer[]): Promise<ExtendedLoadBalancerData> {
-  const extendedLBData: ExtendedLoadBalancerData = {}
+async function getLoadBalancerThreshold(appData: ApplicationData[], dbApps: IApplication[], loadBalancers: ILoadBalancer[], networkApps: Map<string, Application>): Promise<ExtendedLoadBalancer> {
+  const extendedLBData: ExtendedLoadBalancer = {}
+
+  const getInactiveAppRelays = (loadBalancer: ExtendedLoadBalancerData): number => {
+    const inactiveApps = loadBalancer.applicationIDs.filter(id =>
+      !loadBalancer.activeApplications.some(app => app.id === id))
+
+    const maxUnusedRelays = inactiveApps.reduce((acc, curr) => {
+      const app = dbApps.find((data => data._id.toString() === curr))
+      if (app === undefined) {
+        return acc
+      }
+      const networkInfo = networkApps.get(app?.freeTierApplicationAccount.publicKey ?? '')
+      if (networkInfo === undefined) {
+        return acc
+      }
+      return acc + Number(networkInfo.maxRelays)
+    }, 0)
+
+    return maxUnusedRelays
+  }
 
   appData.forEach(async app => {
     const dbApp = dbApps.find((data => data.freeTierApplicationAccount.address === app.address))
@@ -117,7 +135,7 @@ async function getLoadBalancerThreshold(appData: ApplicationData[], dbApps: IApp
       appID === dbApp?._id.toString()
     ) > -1)
 
-    // TODO: Defined behavior for apps that don't belong to any load balancer
+    // TODO: Define behavior for apps that don't belong to any load balancer
     if (lb === undefined) {
       return
     }
@@ -126,24 +144,25 @@ async function getLoadBalancerThreshold(appData: ApplicationData[], dbApps: IApp
 
     if (lbID in extendedLBData) {
       const extendedLB = extendedLBData[lbID]
-      extendedLB.maxRelays = BigInt(Number(extendedLB.maxRelays) + Number(app.maxRelays))
-      extendedLB.relaysUsed = BigInt(Number(extendedLB.relaysUsed) + Number(app.relaysUsed))
-      extendedLB.applicationsRelayed.push({ ...app, id: dbApp._id })
+      extendedLB.maxRelays += app.maxRelays
+      extendedLB.relaysUsed += app.relaysUsed
+      extendedLB.activeApplications.push({ ...app, id: dbApp._id })
     } else {
       /// @ts-ignore
-      extendedLBData[lbID] = { userID, name, applicationIDs }
+      extendedLBData[lbID] = { userID, name, applicationIDs, id: lbID }
 
       const extendedLB = extendedLBData[lbID]
       extendedLB.maxRelays = app.maxRelays
       extendedLB.relaysUsed = app.relaysUsed
 
       // @ts-ignore
-      extendedLB.applicationsRelayed = [{ ...app, id: dbApp._id }]
+      extendedLB.activeApplications = [{ ...app, id: dbApp._id.toString() }]
     }
   })
 
   for (const id in extendedLBData) {
     const lb = extendedLBData[id]
+    lb.maxRelays += getInactiveAppRelays(lb)
     const { relaysUsed, maxRelays } = lb
     extendedLBData[id].percentageUsed = calculateRelaysPercentage(relaysUsed, maxRelays)
   }
@@ -167,7 +186,7 @@ exports.handler = async () => {
   // // TODO: Cache Load Balancer data
   const loadBalancers = await LoadBalancerModel.find()
 
-  const lbData = await getLoadBalancerThreshold(appData, dbApps, loadBalancers)
+  const lbData = await getLoadBalancerThreshold(appData, dbApps, loadBalancers, networkApps)
 
-  return {}
+  return { 'message': 'ok' }
 }

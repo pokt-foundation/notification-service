@@ -14,8 +14,8 @@
  * }, 1000, 2)
  *
  */
-export const retryEvery = async (
-  callback: any,
+export const retryEvery = async <T extends Function>(
+  callback: T,
   { initialRetryTimer = 1000, increaseFactor = 3, maxRetries = 3 } = {}
 ): Promise<any> => {
   const sleep = (time: number) => new Promise(resolve => setTimeout(resolve, time))
