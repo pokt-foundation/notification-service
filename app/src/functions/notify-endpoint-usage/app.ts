@@ -1,4 +1,4 @@
-import { influx, buildAppUsageQuery } from "../../lib/influx";
+import { influx, buildAppUsageQuery, getUsageData } from "../../lib/influx";
 import { getUTCTimestamp, getHoursFromNowUtcDate } from "../../lib/date-utils";
 import connect from "../../lib/db"
 import { ApplicationData, ExtendedApplicationData, ExtendedLoadBalancer, ExtendedLoadBalancerData, GetUsageDataQuery } from "../../models/types";
@@ -9,34 +9,17 @@ import ApplicationModel, { IApplication } from "../../models/Application";
 import LoadBalancerModel, { ILoadBalancer } from "../../models/LoadBalancer";
 import Redis from 'ioredis'
 import { retryEvery } from "../../utils/retry";
+import { Context } from 'aws-lambda';
+import logger from '../../lib/logger';
 
 const REDIS_HOST = process.env.REDIS_HOST || "";
 const REDIS_PORT = process.env.REDIS_PORT || "";
 
 const CACHE_TTL = parseInt(process.env.NETWORK_CACHE_TTL ?? '') || 3600;
-const QUERY_START_TIME = parseInt(process.env.INFLUX_QUERY_START_TIME ?? '') || 1;
 
 const redis = new Redis(parseInt(REDIS_PORT), REDIS_HOST)
 
 const calculateRelaysPercentage = (relays: number, maxRelays: number) => parseFloat(((relays / maxRelays) * 100).toFixed(2))
-
-export async function getUsageData(): Promise<GetUsageDataQuery[]> {
-  const usage = (await influx.collectRows(
-    buildAppUsageQuery({
-      start: getHoursFromNowUtcDate(QUERY_START_TIME),
-      stop: getUTCTimestamp(),
-    })
-  )) as unknown as any[];
-
-  const appData = usage.map((data: any) => ({
-    relays: data._value,
-    applicationPublicKey: data.applicationPublicKey,
-    result: data.result,
-    table: data.table,
-  }));
-
-  return appData as GetUsageDataQuery[];
-}
 
 function getRelaysUsed(networkData: Map<string, Application>, influxData: GetUsageDataQuery[]): ApplicationData[] {
   const applicationsData: ApplicationData[] = []
@@ -178,8 +161,12 @@ async function getLoadBalancerThreshold(appData: ApplicationData[], dbApps: IApp
   return extendedLBData
 }
 
-exports.handler = async () => {
+exports.handler = async (_: any, context: Context) => {
   await connect()
+
+  logger.requestId = context.awsRequestId
+
+  logger.log('info', 'starting')
 
   const usage = await retryEvery(getUsageData);
 
@@ -200,29 +187,38 @@ exports.handler = async () => {
   const networkApps: Map<string, Application> = new Map<string, Application>()
   networkData.forEach(app => networkApps.set(app.publicKey, app))
 
-  let dbApps: IApplication[]
+  let dbApps: IApplication[] = []
+  let loadBalancers: ILoadBalancer[] = []
 
-  const cachedApps = await redis.get('nt-applications')
-  if (!cachedApps) {
-    dbApps = await ApplicationModel.find()
-    await redis.set('nt-applications', JSON.stringify(dbApps), 'EX', CACHE_TTL)
-  } else {
-    dbApps = JSON.parse(cachedApps)
-  }
+  try {
+    const cachedApps = await redis.get('nt-applications')
+    if (!cachedApps) {
+      dbApps = await ApplicationModel.find()
+      await redis.set('nt-applications', JSON.stringify(dbApps), 'EX', CACHE_TTL)
+    } else {
+      dbApps = JSON.parse(cachedApps)
+    }
 
-  let loadBalancers: ILoadBalancer[]
 
-  const cachedLoadBalancers = await redis.get('nt-loadBalancers')
-  if (!cachedLoadBalancers) {
-    loadBalancers = await LoadBalancerModel.find()
-    await redis.set('nt-loadBalancers', JSON.stringify(loadBalancers), 'EX', CACHE_TTL)
-  } else {
-    loadBalancers = JSON.parse(cachedLoadBalancers)
+    const cachedLoadBalancers = await redis.get('nt-loadBalancers')
+    if (!cachedLoadBalancers) {
+      loadBalancers = await LoadBalancerModel.find()
+      await redis.set('nt-loadBalancers', JSON.stringify(loadBalancers), 'EX', CACHE_TTL)
+    } else {
+      loadBalancers = JSON.parse(cachedLoadBalancers)
+    }
+  } catch (err) {
+    logger.log('error', 'failed retrieving database models', (err as Error).message)
+    return err
   }
 
   const appData = getRelaysUsed(networkApps, usage)
 
   const lbData = await getLoadBalancerThreshold(appData, dbApps, loadBalancers, networkApps)
+
+  logger.log('info', 'successfully calculate usage', undefined, undefined, {
+    maxLbs: Object.keys(lbData).length
+  })
 
   return { 'message': 'ok' }
 }

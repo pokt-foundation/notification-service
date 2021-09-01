@@ -7,11 +7,12 @@ export type Log = {
   level: logLevel
   message?: string
   error?: string
-  applicationId?: string,
-  loadBalancerId?: string,
-  loadBalancerApps?: string,
+  applicationId?: string
+  lbId?: string
+  lbName?: string
+  lbApps?: string
   maxRelays?: number
-  relaysUsed?: number,
+  relaysUsed?: number
   percentageUsed?: number
 }
 
@@ -29,14 +30,15 @@ export class Logger {
     maxRelays?: number
     relaysUsed?: number,
     percentageUsed?: number
-  }) {
+  }, additionalInfo?: object) {
     const log: Log = {
       timestamp: new Date().toISOString(),
       requestId: this.requestId,
       level,
       message,
       error,
-      ...relayData
+      ...relayData,
+      ...additionalInfo
     }
     console.log(log)
   }
