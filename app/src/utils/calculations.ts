@@ -49,15 +49,21 @@ export function getApplicationsUsage(networkData: Map<string, Application>, infl
   return applicationsData
 }
 
-export async function getLoadBalancersUsage(appData: ApplicationData[], dbApps: IApplication[], loadBalancers: ILoadBalancer[], networkApps: Map<string, Application>): Promise<ExtendedLoadBalancer> {
+export async function getLoadBalancersUsage(appData: ApplicationData[], dbApps: Map<string, IApplication>, loadBalancers: Map<string, ILoadBalancer>, networkApps: Map<string, Application>): Promise<ExtendedLoadBalancer> {
   const extendedLBData: ExtendedLoadBalancer = {}
+
+  const lbsOfApps = new Map<string, string>()
+  for (const loadBalancer of loadBalancers) {
+    const [lbID, lb] = loadBalancer
+    lb.applicationIDs.forEach(appID => lbsOfApps.set(appID, lbID))
+  }
 
   const getInactiveAppRelays = (loadBalancer: ExtendedLoadBalancerData): number => {
     const inactiveApps = loadBalancer.applicationIDs.filter(id =>
       !loadBalancer.activeApplications.some(app => app.id === id))
 
     const maxUnusedRelays = inactiveApps.reduce((acc, curr) => {
-      const app = dbApps.find((data => data._id.toString() === curr))
+      const app = dbApps.get(curr)
       if (app === undefined) {
         return acc
       }
@@ -72,20 +78,20 @@ export async function getLoadBalancersUsage(appData: ApplicationData[], dbApps: 
   }
 
   appData.forEach(async app => {
-    const dbApp = dbApps.find((data => data.freeTierApplicationAccount?.address === app.address))
+    const dbApp = dbApps.get(app.address)
 
     if (dbApp === undefined) {
       return
     }
 
-    const lb = loadBalancers.find((lb) => lb.applicationIDs.findIndex((appID) =>
-      appID === dbApp?._id.toString()
-    ) > -1)
+    const lbId = lbsOfApps.get(dbApp?._id.toString())
 
     // TODO: Define behavior for apps that don't belong to any load balancer
-    if (lb === undefined) {
+    if (lbId === undefined) {
       return
     }
+
+    const lb = loadBalancers.get(lbId)!
 
     const { _id: lbID, user: userID, name, applicationIDs } = lb
 

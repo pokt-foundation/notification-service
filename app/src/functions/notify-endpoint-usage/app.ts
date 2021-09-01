@@ -11,6 +11,7 @@ import { retryEvery } from "../../utils/retry";
 import { Context } from 'aws-lambda';
 import logger from '../../lib/logger';
 import { getApplicationsUsage, getLoadBalancersUsage } from '../../utils/calculations';
+import { getModelFromDbOrCache } from "../../utils/db";
 
 const REDIS_HOST = process.env.REDIS_HOST || "";
 const REDIS_PORT = process.env.REDIS_PORT || "";
@@ -74,35 +75,17 @@ exports.handler = async (_: any, context: Context) => {
   const networkApps: Map<string, Application> = new Map<string, Application>()
   networkData.forEach(app => networkApps.set(app.publicKey, app))
 
-  let dbApps: IApplication[] = []
-  let loadBalancers: ILoadBalancer[] = []
+  // @ts-ignore
+  const apps: Map<string, IApplication> = await retryEvery(getModelFromDbOrCache.bind(null, redis, ApplicationModel, 'nt-applications', 'freeTierApplicationAccount.address'))
 
-  try {
-    const cachedApps = await redis.get('nt-applications')
-    if (!cachedApps) {
-      dbApps = await ApplicationModel.find()
-      await redis.set('nt-applications', JSON.stringify(dbApps), 'EX', CACHE_TTL)
-    } else {
-      dbApps = JSON.parse(cachedApps)
-    }
-
-    const cachedLoadBalancers = await redis.get('nt-loadBalancers')
-    if (!cachedLoadBalancers) {
-      loadBalancers = await LoadBalancerModel.find()
-      await redis.set('nt-loadBalancers', JSON.stringify(loadBalancers), 'EX', CACHE_TTL)
-    } else {
-      loadBalancers = JSON.parse(cachedLoadBalancers)
-    }
-  } catch (err) {
-    logger.log('error', 'failed retrieving database models', (err as Error).message)
-    return err
-  }
+  // @ts-ignore
+  const loadBalancers = await retryEvery(getModelFromDbOrCache.bind(null, redis, LoadBalancerModel, 'nt-loadBalancers', '_id'))
 
   const appUsage = getApplicationsUsage(networkApps, usage)
 
-  const lbUsage = await getLoadBalancersUsage(appUsage, dbApps, loadBalancers, networkApps)
+  const lbUsage = await getLoadBalancersUsage(appUsage, apps, loadBalancers, networkApps)
 
-  logger.log('info', 'successfully calculate usage', undefined, undefined, {
+  logger.log('info', 'successfully calculated usage', undefined, undefined, {
     maxLbs: Object.keys(lbUsage).length
   })
 
