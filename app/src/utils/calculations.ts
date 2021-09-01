@@ -3,16 +3,14 @@ import { Application } from '@pokt-network/pocket-js';
 import { ApplicationData, ExtendedLoadBalancer, ExtendedLoadBalancerData, GetUsageDataQuery } from '../models/types';
 import { IApplication } from '../models/Application';
 import { ILoadBalancer } from '../models/LoadBalancer';
+import { convertToMap } from './helpers';
 
 const calculateRelaysPercentage = (relays: number, maxRelays: number) => parseFloat(((relays / maxRelays) * 100).toFixed(2))
 
 export function getApplicationsUsage(networkData: Map<string, Application>, influxData: GetUsageDataQuery[]): ApplicationData[] {
   const applicationsData: ApplicationData[] = []
 
-  const queryData = new Map<string, GetUsageDataQuery>()
-    ; influxData.forEach((entry) => {
-      queryData.set(entry.applicationPublicKey, entry)
-    })
+  const queryData = convertToMap(influxData, 'applicationPublicKey')
 
   influxData.forEach(entry => {
     const networkApp = networkData.get(entry.applicationPublicKey)

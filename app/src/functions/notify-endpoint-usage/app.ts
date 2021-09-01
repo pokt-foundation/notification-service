@@ -11,7 +11,8 @@ import { retryEvery } from "../../utils/retry";
 import { Context } from 'aws-lambda';
 import logger from '../../lib/logger';
 import { getApplicationsUsage, getLoadBalancersUsage } from '../../utils/calculations';
-import { getModelFromDbOrCache } from "../../utils/db";
+import { getModelFromDBOrCache } from "../../utils/db";
+import { convertToMap } from '../../utils/helpers';
 
 const REDIS_HOST = process.env.REDIS_HOST || "";
 const REDIS_PORT = process.env.REDIS_PORT || "";
@@ -72,14 +73,16 @@ exports.handler = async (_: any, context: Context) => {
     networkData = JSON.parse(cachedNetworkData)
   }
 
-  const networkApps: Map<string, Application> = new Map<string, Application>()
-  networkData.forEach(app => networkApps.set(app.publicKey, app))
+  const networkApps = convertToMap(networkData, 'publicKey')
 
-  // @ts-ignore
-  const apps: Map<string, IApplication> = await retryEvery(getModelFromDbOrCache.bind(null, redis, ApplicationModel, 'nt-applications', 'freeTierApplicationAccount.address'))
+  const apps: Map<string, IApplication> = convertToMap(await retryEvery(
+    // @ts-ignore
+    getModelFromDBOrCache.bind(null, redis, ApplicationModel, 'nt-applications')),
+    'freeTierApplicationAccount.address')
 
-  // @ts-ignore
-  const loadBalancers = await retryEvery(getModelFromDbOrCache.bind(null, redis, LoadBalancerModel, 'nt-loadBalancers', '_id'))
+  const loadBalancers: Map<string, ILoadBalancer> = convertToMap(await
+    // @ts-ignore
+    retryEvery(getModelFromDBOrCache.bind(null, redis, LoadBalancerModel, 'nt-loadBalancers')), '_id')
 
   const appUsage = getApplicationsUsage(networkApps, usage)
 
