@@ -9,7 +9,7 @@ const DEFAULT_INFLUX_TIMEOUT = 20000
 
 export const influx = new InfluxDB({
   url: process.env.INFLUX_ENDPOINT ?? '',
-  token: process.env.INFLUX_TOKE ?? '',
+  token: process.env.INFLUX_TOKEN ?? '',
   timeout: DEFAULT_INFLUX_TIMEOUT,
 }).getQueryApi(process.env.INFLUX_ORG ?? '')
 
