@@ -10,21 +10,20 @@ import LoadBalancerModel, { ILoadBalancer } from "../../models/LoadBalancer";
 import Redis from 'ioredis'
 import { retryEvery } from "../../utils/retry";
 
-const redisHost = process.env.REDIS_HOST || "";
-const redisPort = process.env.REDIS_PORT || "";
+const REDIS_HOST = process.env.REDIS_HOST || "";
+const REDIS_PORT = process.env.REDIS_PORT || "";
 
-const cacheTTL = parseInt(process.env.NETWORK_CACHE_TTL ?? '') || 3600;
-const queryStartTime = parseInt(process.env.INFLUX_QUERY_START_TIME ?? '') || 1;
-const maxRetries = process.env.MAX_RETRIES || 3;
+const CACHE_TTL = parseInt(process.env.NETWORK_CACHE_TTL ?? '') || 3600;
+const QUERY_START_TIME = parseInt(process.env.INFLUX_QUERY_START_TIME ?? '') || 1;
 
-const redis = new Redis(parseInt(redisPort), redisHost)
+const redis = new Redis(parseInt(REDIS_PORT), REDIS_HOST)
 
 const calculateRelaysPercentage = (relays: number, maxRelays: number) => parseFloat(((relays / maxRelays) * 100).toFixed(2))
 
 export async function getUsageData(): Promise<GetUsageDataQuery[]> {
   const usage = (await influx.collectRows(
     buildAppUsageQuery({
-      start: getHoursFromNowUtcDate(queryStartTime),
+      start: getHoursFromNowUtcDate(QUERY_START_TIME),
       stop: getUTCTimestamp(),
     })
   )) as unknown as any[];
@@ -193,7 +192,7 @@ exports.handler = async () => {
       typeof value === 'bigint'
         ? value.toString()
         : value
-    ), 'EX', cacheTTL)
+    ), 'EX', CACHE_TTL)
   } else {
     networkData = JSON.parse(cachedNetworkData)
   }
@@ -206,7 +205,7 @@ exports.handler = async () => {
   const cachedApps = await redis.get('nt-applications')
   if (!cachedApps) {
     dbApps = await ApplicationModel.find()
-    await redis.set('nt-applications', JSON.stringify(dbApps), 'EX', cacheTTL)
+    await redis.set('nt-applications', JSON.stringify(dbApps), 'EX', CACHE_TTL)
   } else {
     dbApps = JSON.parse(cachedApps)
   }
@@ -216,7 +215,7 @@ exports.handler = async () => {
   const cachedLoadBalancers = await redis.get('nt-loadBalancers')
   if (!cachedLoadBalancers) {
     loadBalancers = await LoadBalancerModel.find()
-    await redis.set('nt-loadBalancers', JSON.stringify(loadBalancers), 'EX', cacheTTL)
+    await redis.set('nt-loadBalancers', JSON.stringify(loadBalancers), 'EX', CACHE_TTL)
   } else {
     loadBalancers = JSON.parse(cachedLoadBalancers)
   }
