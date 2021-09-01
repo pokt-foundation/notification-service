@@ -13,7 +13,9 @@ import { retryEvery } from "../../utils/retry";
 const redisHost = process.env.REDIS_HOST || "";
 const redisPort = process.env.REDIS_PORT || "";
 
-const maxRetries = process.env.MAX_RETRIES || 3;
+const cacheTTL = parseInt(process.env.NETWORK_CACHE_TTL ?? '') || 3600;
+
+const queryStartTime = parseInt(process.env.INFLUX_QUERY_START_TIME ?? '') || 1;
 
 const redis = new Redis(parseInt(redisPort), redisHost)
 
@@ -22,7 +24,7 @@ const calculateRelaysPercentage = (relays: number, maxRelays: number) => parseFl
 export async function getUsageData(): Promise<GetUsageDataQuery[]> {
   const usage = (await influx.collectRows(
     buildAppUsageQuery({
-      start: getHoursFromNowUtcDate(2),
+      start: getHoursFromNowUtcDate(queryStartTime),
       stop: getUTCTimestamp(),
     })
   )) as unknown as any[];
@@ -186,8 +188,8 @@ exports.handler = async () => {
     await redis.set('nt-network-apps', JSON.stringify(networkData, (_, value) =>
       typeof value === 'bigint'
         ? value.toString()
-        : value // return everything else unchanged
-    ), 'EX', 3600)
+        : value
+    ), 'EX', cacheTTL)
   } else {
     networkData = JSON.parse(cachedNetworkData)
   }
@@ -200,7 +202,7 @@ exports.handler = async () => {
   const cachedApps = await redis.get('nt-applications')
   if (!cachedApps) {
     dbApps = await ApplicationModel.find()
-    await redis.set('nt-applications', JSON.stringify(dbApps), 'EX', 1800)
+    await redis.set('nt-applications', JSON.stringify(dbApps), 'EX', cacheTTL)
   } else {
     dbApps = JSON.parse(cachedApps)
   }
@@ -210,7 +212,7 @@ exports.handler = async () => {
   const cachedLoadBalancers = await redis.get('nt-loadBalancers')
   if (!cachedLoadBalancers) {
     loadBalancers = await LoadBalancerModel.find()
-    await redis.set('nt-loadBalancers', JSON.stringify(loadBalancers), 'EX', 1800)
+    await redis.set('nt-loadBalancers', JSON.stringify(loadBalancers), 'EX', cacheTTL)
   } else {
     loadBalancers = JSON.parse(cachedLoadBalancers)
   }
