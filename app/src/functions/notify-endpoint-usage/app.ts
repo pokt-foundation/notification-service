@@ -7,6 +7,8 @@ import { QueryAppResponse, StakingStatus } from '@pokt-network/pocket-js';
 const redisHost = process.env.REDIS_HOST || "";
 const redisPort = process.env.REDIS_PORT || "";
 
+const maxRetries = process.env.MAX_RETRIES || 3;
+
 export async function getUsageData(): Promise<GetUsageDataQuery[]> {
   const usage = (await influx.collectRows(
     buildAppUsageQuery({
@@ -55,17 +57,9 @@ function getRelaysUsed(networkData: QueryAppResponse[], influxData: GetUsageData
   return applicationsData
 }
 
+
 exports.handler = async () => {
   const usage = await getUsageData();
 
-  const networkApps = Promise.allSettled(
-    usage.map((app) => getApplicationNetworkData(app.applicationPublicKey))
-  );
-
-  // TODO: Retry on error
-
-  // @ts-ignore
-  const apps = (await networkApps).map((data) => data.value)
-
-  return getRelaysUsed(apps, usage);
+  return usage;
 };
