@@ -225,7 +225,5 @@ exports.handler = async () => {
 
   const lbData = await getLoadBalancerThreshold(appData, dbApps, loadBalancers, networkApps)
 
-  console.log('what', lbData)
-
   return { 'message': 'ok' }
 }
