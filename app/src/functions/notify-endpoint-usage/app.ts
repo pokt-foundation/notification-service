@@ -43,11 +43,9 @@ function getRelaysUsed(networkData: Map<string, Application>, influxData: GetUsa
   const applicationsData: ApplicationData[] = []
 
   const queryData = new Map<string, GetUsageDataQuery>()
-    ; influxData.forEach((acc, data) => {
-      // @ts-ignore
-      acc[data.applicationPublicKey] = data
-      return acc
-    }, {})
+    ; influxData.forEach((entry) => {
+      queryData.set(entry.applicationPublicKey, entry)
+    })
 
   influxData.forEach(entry => {
     const networkApp = networkData.get(entry.applicationPublicKey)
