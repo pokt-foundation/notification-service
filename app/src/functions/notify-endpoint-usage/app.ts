@@ -37,11 +37,12 @@ export async function getUsageData(): Promise<GetUsageDataQuery[]> {
 function getRelaysUsed(networkData: Map<string, Application>, influxData: GetUsageDataQuery[]): ApplicationData[] {
   const applicationsData: ApplicationData[] = []
 
-  const influxDataMap: { [any: string]: GetUsageDataQuery } = influxData.reduce((acc, data) => {
-    // @ts-ignore
-    acc[data.applicationPublicKey] = data
-    return acc
-  }, {})
+  const queryData = new Map<string, GetUsageDataQuery>()
+    ; influxData.forEach((acc, data) => {
+      // @ts-ignore
+      acc[data.applicationPublicKey] = data
+      return acc
+    }, {})
 
   influxData.forEach(entry => {
     const networkApp = networkData.get(entry.applicationPublicKey)
@@ -53,7 +54,12 @@ function getRelaysUsed(networkData: Map<string, Application>, influxData: GetUsa
 
     const { publicKey, address, chains, stakedTokens, jailed, status, maxRelays } = networkApp
 
-    const { relays: relaysUsed } = influxDataMap[publicKey]
+    const appQuery = queryData.get(publicKey)
+    if (appQuery === undefined) {
+      return
+    }
+
+    const { relays: relaysUsed } = appQuery
 
     const applicationData: ApplicationData = {
       publicKey,
