@@ -55,9 +55,9 @@ export async function getApplicationNetworkData(publicKey: string): Promise<Quer
   return rpcResponse
 }
 
-export async function getAppsInNetwork(): Promise<Application[]> {
+export async function getAppsInNetwork(): Promise<Omit<Application, 'toJSON' | 'isValid'>[]> {
   let page = 1
-  const applicationsList: Application[] = []
+  const applicationsList: Omit<Application, 'toJSON' | 'isValid'>[] = []
   const perPage = 100
   const rpcProvider = getRPCProvider()
   const pocketInstance = new Pocket(getPocketDispatchers(), undefined, POCKET_CONFIGURATION)
@@ -79,7 +79,19 @@ export async function getAppsInNetwork(): Promise<Application[]> {
       break
     }
     response?.applications.forEach((app) => {
-      applicationsList.push(app)
+      const { address, chains, public_key: publicKey, jailed, max_relays: maxRelays, status,
+        staked_tokens: stakedTokens, unstaking_time: unstakingCompletionTime } = app.toJSON()
+
+      applicationsList.push({
+        address,
+        chains,
+        publicKey,
+        jailed,
+        maxRelays: BigInt(maxRelays),
+        status,
+        stakedTokens: BigInt(stakedTokens),
+        unstakingCompletionTime
+      })
     })
   }
 

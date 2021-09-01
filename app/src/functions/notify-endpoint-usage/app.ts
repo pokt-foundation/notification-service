@@ -22,7 +22,7 @@ const calculateRelaysPercentage = (relays: number, maxRelays: number) => parseFl
 export async function getUsageData(): Promise<GetUsageDataQuery[]> {
   const usage = (await influx.collectRows(
     buildAppUsageQuery({
-      start: getHoursFromNowUtcDate(1),
+      start: getHoursFromNowUtcDate(2),
       stop: getUTCTimestamp(),
     })
   )) as unknown as any[];
@@ -176,13 +176,24 @@ async function getLoadBalancerThreshold(appData: ApplicationData[], dbApps: IApp
 exports.handler = async () => {
   await connect()
 
-  // TODO: Handle retry on timeout
-  const usage = await getUsageData();
+  const usage = await retryEvery(getUsageData);
+
+  let networkData: Application[]
+
+  const cachedNetworkData = await redis.get('nt-network-apps')
+  if (!cachedNetworkData) {
+    networkData = await retryEvery(getAppsInNetwork)
+    await redis.set('nt-network-apps', JSON.stringify(networkData, (_, value) =>
+      typeof value === 'bigint'
+        ? value.toString()
+        : value // return everything else unchanged
+    ), 'EX', 3600)
+  } else {
+    networkData = JSON.parse(cachedNetworkData)
+  }
 
   const networkApps: Map<string, Application> = new Map<string, Application>()
-    ; (await retryEvery(getAppsInNetwork) as Application[]).forEach(app => networkApps.set(app.publicKey, app))
-
-  const appData = getRelaysUsed(networkApps, usage)
+  networkData.forEach(app => networkApps.set(app.publicKey, app))
 
   let dbApps: IApplication[]
 
@@ -203,6 +214,8 @@ exports.handler = async () => {
   } else {
     loadBalancers = JSON.parse(cachedLoadBalancers)
   }
+
+  const appData = getRelaysUsed(networkApps, usage)
 
   const lbData = await getLoadBalancerThreshold(appData, dbApps, loadBalancers, networkApps)
 
