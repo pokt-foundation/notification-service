@@ -4,6 +4,7 @@ import { ApplicationData, ExtendedLoadBalancer, ExtendedLoadBalancerData, GetUsa
 import { IApplication } from '../models/Application';
 import { ILoadBalancer } from '../models/LoadBalancer';
 import { convertToMap } from './helpers';
+import logger from '../lib/logger';
 
 const calculateRelaysPercentage = (relays: number, maxRelays: number) => parseFloat(((relays / maxRelays) * 100).toFixed(2))
 
@@ -41,7 +42,17 @@ export function getApplicationsUsage(networkData: Map<string, Application>, infl
       percentageUsed: calculateRelaysPercentage(relaysUsed, Number(maxRelays))
     }
 
-    applicationsData.push(applicationData)
+    if (applicationData.percentageUsed > 100) {
+      const { address: applicationAddress, relaysUsed, maxRelays, percentageUsed } = applicationData
+      logger.log('info', 'Application over 100% threshold', undefined, {
+        applicationAddress,
+        relaysUsed,
+        maxRelays,
+        percentageUsed
+      })
+
+      applicationsData.push(applicationData)
+    }
   })
 
   return applicationsData
@@ -114,8 +125,19 @@ export async function getLoadBalancersUsage(appData: ApplicationData[], dbApps: 
   for (const id in extendedLBData) {
     const lb = extendedLBData[id]
     lb.maxRelays += getInactiveAppRelays(lb)
-    const { relaysUsed, maxRelays } = lb
-    extendedLBData[id].percentageUsed = calculateRelaysPercentage(relaysUsed, maxRelays)
+    const { relaysUsed, maxRelays, name, activeApplications } = lb
+    lb.percentageUsed = calculateRelaysPercentage(relaysUsed, maxRelays)
+
+    if (lb.percentageUsed > 100) {
+      logger.log('info', 'Load Balancer over 100% threshold', undefined, {
+        loadBalancerId: id,
+        loadBalancerName: name,
+        loadBalancerApps: activeApplications.map(app => app.address),
+        maxRelays: lb.maxRelays,
+        relaysUsed: relaysUsed,
+        percentageUsed: lb.percentageUsed
+      })
+    }
   }
 
   return extendedLBData

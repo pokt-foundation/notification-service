@@ -7,15 +7,14 @@ export type Log = {
   level: logLevel
   message?: string
   error?: string
-  applicationId?: string
-  lbId?: string
-  lbName?: string
-  lbApps?: string
+  loadBalancerId?: string
+  loadBalancerName?: string
+  loadBalancerApps?: string[],
+  applicationAddress?: string,
   maxRelays?: number
   relaysUsed?: number
   percentageUsed?: number
 }
-
 export class Logger {
   requestId: string
 
@@ -24,9 +23,10 @@ export class Logger {
   }
 
   log(level: logLevel, message?: string, error?: string, relayData?: {
-    applicationId?: string,
+    applicationAddress?: string,
     loadBalancerId?: string,
-    loadBalancerApps?: string,
+    loadBalancerApps?: string[],
+    loadBalancerName?: string,
     maxRelays?: number
     relaysUsed?: number,
     percentageUsed?: number
