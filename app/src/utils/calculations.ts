@@ -50,9 +50,9 @@ export function getApplicationsUsage(networkData: Map<string, Application>, infl
         maxRelays,
         percentageUsed
       })
-
-      applicationsData.push(applicationData)
     }
+
+    applicationsData.push(applicationData)
   })
 
   return applicationsData
