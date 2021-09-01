@@ -14,8 +14,8 @@ const redisHost = process.env.REDIS_HOST || "";
 const redisPort = process.env.REDIS_PORT || "";
 
 const cacheTTL = parseInt(process.env.NETWORK_CACHE_TTL ?? '') || 3600;
-
 const queryStartTime = parseInt(process.env.INFLUX_QUERY_START_TIME ?? '') || 1;
+const maxRetries = process.env.MAX_RETRIES || 3;
 
 const redis = new Redis(parseInt(redisPort), redisHost)
 
@@ -226,6 +226,8 @@ exports.handler = async () => {
   const appData = getRelaysUsed(networkApps, usage)
 
   const lbData = await getLoadBalancerThreshold(appData, dbApps, loadBalancers, networkApps)
+
+  console.log('what', lbData)
 
   return { 'message': 'ok' }
 }
