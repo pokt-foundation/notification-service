@@ -1,4 +1,4 @@
-import logger from '../lib/logger';
+import log from '../lib/logger';
 
 /*
  * Calls `callback` exponentially, everytime `retry()` is called.
@@ -34,7 +34,7 @@ export const retryEvery = async <T extends Function>(
 
       // Exponentially backoff attempts
       const nextRetryTime = retryTimer * increaseFactor
-      logger.log('warn', `Operation failed. Retrying in ${nextRetryTime}s... (attempt ${retryNum} of ${maxRetries})`, (err as Error).message)
+      log('warn', `Operation failed. Retrying in ${nextRetryTime}s... (attempt ${retryNum} of ${maxRetries})`, (err as Error).message)
       await sleep(nextRetryTime)
       return attempt(nextRetryTime)
     }

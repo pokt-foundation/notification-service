@@ -24,6 +24,7 @@
     "@types/aws-lambda": "^8.10.83",
     "@types/axios": "^0.14.0",
     "@types/ioredis": "^4.27.0",
+    "@types/lodash": "^4.14.172",
     "@types/mailgun-js": "^0.22.12",
     "@types/mongoose": "^5.11.97",
     "@types/node": "^16.7.1",
@@ -35,6 +36,7 @@
     "@pokt-network/pocket-js": "^0.6.13-rc",
     "dayjs": "^1.10.6",
     "ioredis": "^4.27.8",
+    "lodash.get": "^4.4.2",
     "mailgun-js": "^0.22.0",
     "mongoose": "^6.0.1"
   }

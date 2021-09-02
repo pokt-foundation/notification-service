@@ -3,29 +3,28 @@ type logLevel = 'debug' | 'info' | 'warn' | 'error'
 
 export type Log = {
   timestamp: string
-  level: logLevel
   message?: string
   error?: string
-  applicationId?: string
-  lbId?: string
-  lbName?: string
-  lbApps?: string
+  loadBalancerId?: string
+  loadBalancerName?: string
+  loadBalancerApps?: string[],
+  applicationAddress?: string,
   maxRelays?: number
   relaysUsed?: number
   percentageUsed?: number
 }
 
 export default function log(level: logLevel, message?: string, error?: string, relayData?: {
-  applicationId?: string,
+  applicationAddress?: string
   loadBalancerId?: string,
-  loadBalancerApps?: string,
+  loadBalancerName?: string
+  loadBalancerApps?: string[],
   maxRelays?: number
   relaysUsed?: number,
   percentageUsed?: number
 }, additionalInfo?: object) {
   const log: Log = {
     timestamp: new Date().toISOString(),
-    level,
     message,
     error,
     ...relayData,

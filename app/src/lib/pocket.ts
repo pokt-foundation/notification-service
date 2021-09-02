@@ -49,7 +49,6 @@ export async function getApplicationNetworkData(publicKey: string): Promise<Quer
   }
 
   if (rpcResponse === undefined) {
-    console.log({ message: 'Got undefined response on public key ' + publicKey })
     return undefined
   }
 
