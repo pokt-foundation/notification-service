@@ -1,12 +1,12 @@
+import Redis from 'ioredis'
+import { Application } from '@pokt-network/pocket-js';
 import { getUsageData } from "../../lib/influx";
 import connect from "../../lib/db"
 import { ApplicationData, ExtendedApplicationData } from "../../models/types";
 import User from '../../models/User'
 import { getAppsInNetwork } from "../../lib/pocket";
-import { Application } from '@pokt-network/pocket-js';
 import ApplicationModel, { IApplication } from "../../models/Application";
 import LoadBalancerModel, { ILoadBalancer } from "../../models/LoadBalancer";
-import Redis from 'ioredis'
 import { retryEvery } from "../../utils/retry";
 import log from '../../lib/logger';
 import { getApplicationsUsage, getLoadBalancersUsage } from '../../utils/calculations';
