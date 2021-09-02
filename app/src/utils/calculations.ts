@@ -44,7 +44,7 @@ export function getApplicationsUsage(networkData: Map<string, Application>, infl
 
     if (applicationData.percentageUsed > 100) {
       const { address: applicationAddress, relaysUsed, maxRelays, percentageUsed } = applicationData
-      logger.log('info', 'Application over 100% threshold', undefined, {
+      logger.log('warn', 'Application over 100% threshold', undefined, {
         applicationAddress,
         relaysUsed,
         maxRelays,
@@ -129,7 +129,7 @@ export async function getLoadBalancersUsage(appData: ApplicationData[], dbApps: 
     lb.percentageUsed = calculateRelaysPercentage(relaysUsed, maxRelays)
 
     if (lb.percentageUsed > 100) {
-      logger.log('info', 'Load Balancer over 100% threshold', undefined, {
+      logger.log('warn', 'Load Balancer over 100% threshold', undefined, {
         loadBalancerId: id,
         loadBalancerName: name,
         loadBalancerApps: activeApplications.map(app => app.address),
