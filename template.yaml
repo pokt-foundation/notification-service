@@ -41,6 +41,13 @@ Parameters:
   DataDogApiKey:
     Type: String
     NoEcho: true
+  DataDogAppKey:
+    Type: String
+    NoEcho: true
+  DataDogSite:
+    Type: String
+    NoEcho: true
+  
 
 Globals:
   Function:
@@ -86,7 +93,9 @@ Resources:
       MemorySize: 128
       Environment:
         Variables:
-          DATADOG_API_KEY: !Ref DataDogApiKey
+          DD_SITE: !Ref DataDogSite
+          DD_API_KEY: !Ref DataDogApiKey
+          DD_APP_KEY: !Ref DataDogAppKey
 
 Outputs:
   NotifyEndpointUsage:
