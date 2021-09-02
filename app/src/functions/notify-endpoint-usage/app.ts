@@ -8,7 +8,6 @@ import ApplicationModel, { IApplication } from "../../models/Application";
 import LoadBalancerModel, { ILoadBalancer } from "../../models/LoadBalancer";
 import Redis from 'ioredis'
 import { retryEvery } from "../../utils/retry";
-import { Context } from 'aws-lambda';
 import log from '../../lib/logger';
 import { getApplicationsUsage, getLoadBalancersUsage } from '../../utils/calculations';
 import { getModelFromDBOrCache } from "../../utils/db";
@@ -50,7 +49,7 @@ async function getUserThresholdExceeded(appData: ApplicationData[]) {
   return extendedAppData
 }
 
-exports.handler = async (_: any, context: Context) => {
+exports.handler = async () => {
   await connect()
 
   log('info', 'starting')
