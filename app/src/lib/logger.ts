@@ -40,7 +40,7 @@ export class Logger {
       ...relayData,
       ...additionalInfo
     }
-    console.log(log)
+    console.log(JSON.stringify(log))
   }
 }
 
