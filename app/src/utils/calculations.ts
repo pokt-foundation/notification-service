@@ -58,8 +58,8 @@ export function getApplicationsUsage(networkData: Map<string, Application>, infl
   return applicationsData
 }
 
-export async function getLoadBalancersUsage(appData: ApplicationData[], dbApps: Map<string, IApplication>, loadBalancers: Map<string, ILoadBalancer>, networkApps: Map<string, Application>): Promise<ExtendedLoadBalancer> {
-  const extendedLBData: ExtendedLoadBalancer = {}
+export async function getLoadBalancersUsage(appData: ApplicationData[], dbApps: Map<string, IApplication>, loadBalancers: Map<string, ILoadBalancer>, networkApps: Map<string, Application>): Promise<Map<string, ExtendedLoadBalancerData>> {
+  let extendedLBData: Map<string, ExtendedLoadBalancerData> = new Map<string, ExtendedLoadBalancerData>()
 
   const lbsOfApps = new Map<string, string>()
   for (const loadBalancer of loadBalancers) {
@@ -86,7 +86,7 @@ export async function getLoadBalancersUsage(appData: ApplicationData[], dbApps: 
     return maxUnusedRelays
   }
 
-  appData.forEach(async app => {
+  appData.forEach(app => {
     const dbApp = dbApps.get(app.address)
 
     if (dbApp === undefined) {
@@ -104,30 +104,37 @@ export async function getLoadBalancersUsage(appData: ApplicationData[], dbApps: 
 
     const { _id: lbID, user: userID, name, applicationIDs } = lb
 
-    if (lbID in extendedLBData) {
-      const extendedLB = extendedLBData[lbID]
+    if (extendedLBData.has(lbID)) {
+      const extendedLB = extendedLBData.get(lbID) as ExtendedLoadBalancerData
+
       extendedLB.maxRelays += app.maxRelays
       extendedLB.relaysUsed += app.relaysUsed
       extendedLB.activeApplications.push({ ...app, id: dbApp._id })
+
+      extendedLBData.set(lbID, extendedLB)
     } else {
       /// @ts-ignore
-      extendedLBData[lbID] = { userID, name, applicationIDs, id: lbID }
+      extendedLBData.set(lbID, { userID, name, applicationIDs, id: lbID })
 
-      const extendedLB = extendedLBData[lbID]
+      const extendedLB = extendedLBData.get(lbID) as ExtendedLoadBalancerData
       extendedLB.maxRelays = app.maxRelays
       extendedLB.relaysUsed = app.relaysUsed
       extendedLB.notificationSettings = dbApp.notificationSettings
 
       // @ts-ignore
       extendedLB.activeApplications = [{ ...app, id: dbApp._id.toString() }]
+
+      extendedLBData.set(lbID, extendedLB)
     }
   })
 
-  for (const id in extendedLBData) {
-    const lb = extendedLBData[id]
+  for (const id in extendedLBData.keys()) {
+    const lb = extendedLBData.get(id) as ExtendedLoadBalancerData
     lb.maxRelays += getInactiveAppRelays(lb)
     const { relaysUsed, maxRelays, name, activeApplications } = lb
     lb.percentageUsed = calculateRelaysPercentage(relaysUsed, maxRelays)
+
+    extendedLBData.set(id, lb)
 
     if (lb.percentageUsed > 100) {
       log('warn', 'Load Balancer over 100% threshold', undefined, {
