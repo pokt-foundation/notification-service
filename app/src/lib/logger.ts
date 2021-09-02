@@ -40,7 +40,23 @@ export class Logger {
       ...relayData,
       ...additionalInfo
     }
-    console.log(JSON.stringify(log))
+    
+    const str = JSON.stringify(log)
+
+    // This is to avoid datadog parsing log level twice
+    switch (level) {
+
+      case 'debug':
+        console.debug(str)
+      case 'info':
+        console.info(str)
+        break
+      case 'warn':
+        console.warn(str)
+        break
+      case 'error':
+        console.error(str)
+    }
   }
 }
 
