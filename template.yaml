@@ -54,6 +54,7 @@ Resources:
       CodeUri: app/
       Handler: dist/functions/notify-endpoint-usage/app.handler
       Runtime: nodejs12.x
+      MemorySize: 400
       Environment:
         Variables:
           EMAIL_API_KEY: !Ref EmailApiKey

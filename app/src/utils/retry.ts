@@ -1,3 +1,5 @@
+import log from '../lib/logger';
+
 /*
  * Calls `callback` exponentially, everytime `retry()` is called.
  * Returns a promise that resolves with the callback's result if it (eventually) succeeds.
@@ -32,9 +34,7 @@ export const retryEvery = async <T extends Function>(
 
       // Exponentially backoff attempts
       const nextRetryTime = retryTimer * increaseFactor
-      console.log(
-        `Retrying in ${nextRetryTime}s... (attempt ${retryNum} of ${maxRetries})`
-      )
+      log('warn', `Operation failed. Retrying in ${nextRetryTime}s... (attempt ${retryNum} of ${maxRetries})`, (err as Error).message)
       await sleep(nextRetryTime)
       return attempt(nextRetryTime)
     }
