@@ -1,7 +1,7 @@
 import { InfluxDB, RequestTimedOutError } from '@influxdata/influxdb-client'
 import { GetUsageDataQuery } from '../models/types';
 import { getHoursFromNowUtcDate, getUTCTimestamp } from './date-utils';
-import logger from './logger';
+import log from './logger';
 
 const QUERY_START_TIME = parseInt(process.env.INFLUX_QUERY_START_TIME ?? '') || 1;
 
@@ -47,7 +47,7 @@ export async function getUsageData(): Promise<GetUsageDataQuery[]> {
       })
     )) as unknown as any[];
   } catch (err) {
-    logger.log('error', 'failed retrieving relays data from influx', (err as Error).message)
+    log('error', 'failed retrieving relays data from influx', (err as Error).message)
     throw err
   }
 
