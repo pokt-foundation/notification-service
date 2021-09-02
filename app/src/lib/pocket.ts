@@ -1,6 +1,6 @@
 import { Application, Configuration, HttpRpcProvider, Pocket, PocketRpcProvider, QueryAppResponse, QueryAppsResponse, RpcError, typeGuard } from "@pokt-network/pocket-js"
 import { getAddressFromPublicKey } from '../utils/crypto';
-import logger from './logger';
+import log from './logger';
 
 const blockTime = process.env.BLOCK_TIME
 
@@ -66,7 +66,7 @@ export async function getAppsInNetwork(): Promise<Omit<Application, 'toJSON' | '
   const rpcResponse = await pocketInstance.rpc(rpcProvider)?.query.getApps(undefined, BigInt(0), undefined, page, perPage)
 
   if (typeGuard(rpcResponse, RpcError)) {
-    logger.log('error', 'failed retrieving applications from network', rpcResponse.message)
+    log('error', 'failed retrieving applications from network', rpcResponse.message)
     throw new Error(rpcResponse.message)
   }
 
