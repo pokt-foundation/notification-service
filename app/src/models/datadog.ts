@@ -36,18 +36,25 @@ export type Lambda = {
   request_id: string;
 }
 
-export type LoadBalancerLog = {
+export type LambdaLog = {
+  aws: Aws;
+  lambda: Lambda;
+  id: string;
   level: string;
   timestamp: (string | number)[];
-  loadBalancerName: string;
-  aws: Aws;
-  maxRelays: number;
-  loadBalancerApps?: (string)[] | null;
-  relaysUsed: number;
-  loadBalancerId: string;
-  percentageUsed: number;
   message: string;
-  id: string;
   hourstamp: string;
-  lambda: Lambda;
+  relaysUsed: number;
+  maxRelays: number;
+  percentageUsed: number;
+}
+
+export type LoadBalancerLog = Lambda & {
+  loadBalancerName: string;
+  loadBalancerApps?: string[];
+  loadBalancerId: string;
+}
+
+export type ApplicationLog = Lambda & {
+  applicationAddress: string,
 }
