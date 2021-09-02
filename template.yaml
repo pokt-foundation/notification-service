@@ -38,6 +38,9 @@ Parameters:
   EmailApiKey:
     Type: String
     NoEcho: true
+  DataDogApiKey:
+    Type: String
+    NoEcho: true
 
 Globals:
   Function:
@@ -70,8 +73,25 @@ Resources:
         SecurityGroupIds: 
          - !Ref SecurityGroupID
         SubnetIds: !Ref SubnetIDs
+  SendDiscordNotification:
+    Type: AWS::Serverless::Function 
+    Metadata:
+      BuildMethod: makefile
+    Properties:
+      FunctionName: send-discord-notification
+      Description: Sends notification to discord on apps/lbs that overran their stake
+      CodeUri: app/
+      Handler: dist/functions/send-discord-notification/app.handler
+      Runtime: nodejs12.x
+      MemorySize: 128
+      Environment:
+        Variables:
+          DATADOG_API_KEY: !Ref DataDogApiKey
 
 Outputs:
   NotifyEndpointUsage:
     Description: "Notify Endpoint Usage Lambda Function ARN"
     Value: !GetAtt NotifyEndpointUsage.Arn
+  SendDiscordNotification:
+    Description: "Send Discord Notification Lambda Function ARN"
+    Value: !GetAtt SendDiscordNotification.Arn
