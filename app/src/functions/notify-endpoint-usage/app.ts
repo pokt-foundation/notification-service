@@ -9,7 +9,7 @@ import LoadBalancerModel, { ILoadBalancer } from "../../models/LoadBalancer";
 import Redis from 'ioredis'
 import { retryEvery } from "../../utils/retry";
 import { Context } from 'aws-lambda';
-import logger from '../../lib/logger';
+import log from '../../lib/logger';
 import { getApplicationsUsage, getLoadBalancersUsage } from '../../utils/calculations';
 import { getModelFromDBOrCache } from "../../utils/db";
 import { convertToMap } from '../../utils/helpers';
@@ -53,9 +53,7 @@ async function getUserThresholdExceeded(appData: ApplicationData[]) {
 exports.handler = async (_: any, context: Context) => {
   await connect()
 
-  logger.requestId = context.awsRequestId
-
-  logger.log('info', 'starting')
+  log('info', 'starting')
 
   const usage = await retryEvery(getUsageData);
 
@@ -88,7 +86,7 @@ exports.handler = async (_: any, context: Context) => {
 
   const lbUsage = await getLoadBalancersUsage(appUsage, apps, loadBalancers, networkApps)
 
-  logger.log('info', 'successfully calculated usage', undefined, undefined, {
+  log('info', 'successfully calculated usage', undefined, undefined, {
     maxLbs: Object.keys(lbUsage).length
   })
 

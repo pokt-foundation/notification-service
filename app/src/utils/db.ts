@@ -1,6 +1,5 @@
 import { Model } from 'mongoose';
-import get from 'lodash/get'
-import logger from '../lib/logger';
+import log from '../lib/logger';
 
 const CACHE_TTL = parseInt(process.env.NETWORK_CACHE_TTL ?? '') || 3600;
 
@@ -16,7 +15,7 @@ export async function getModelFromDBOrCache<T>(redis: any, model: Model<T, {}, {
       result = JSON.parse(cached)
     }
   } catch (err) {
-    logger.log('error', 'failed retrieving database model', (err as Error).message)
+    log('error', 'failed retrieving database model', (err as Error).message)
     throw err
   }
 
