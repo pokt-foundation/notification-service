@@ -116,6 +116,7 @@ export async function getLoadBalancersUsage(appData: ApplicationData[], dbApps: 
       const extendedLB = extendedLBData[lbID]
       extendedLB.maxRelays = app.maxRelays
       extendedLB.relaysUsed = app.relaysUsed
+      extendedLB.notificationSettings = dbApp.notificationSettings
 
       // @ts-ignore
       extendedLB.activeApplications = [{ ...app, id: dbApp._id.toString() }]
