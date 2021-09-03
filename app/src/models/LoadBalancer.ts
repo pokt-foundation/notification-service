@@ -14,7 +14,7 @@ interface INotificationSettings {
 }
 
 export interface ILoadBalancer extends Document {
-  user: Types.ObjectId | string
+  user: Types.ObjectId
   name: string
   requestTimeOut: string
   applicationIDs: string[]

@@ -59,5 +59,5 @@ exports.handler = async () => {
     maxApps: appUsage.length
   })
 
-  return { maxLbs: lbUsage.size, maxApps: appUsage.length }
+  return { message: 'ok' }
 }
