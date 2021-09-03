@@ -1,5 +1,5 @@
 import { StakingStatus } from "@pokt-network/pocket-js"
-import { ILoadBalancer } from './LoadBalancer';
+import { INotificationSettings } from "./Application";
 
 export type GetUsageDataQuery = {
   relays: number,
@@ -36,6 +36,7 @@ export type ExtendedLoadBalancerData = {
   maxRelays: number,
   relaysUsed: number
   activeApplications: ActiveApplications[]
+  notificationSettings: INotificationSettings
 }
 
 export type ExtendedLoadBalancer = {

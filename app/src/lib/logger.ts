@@ -15,7 +15,6 @@ export type Log = {
   maxRelays?: number
   relaysUsed?: number
   percentageUsed?: number
-
 }
 
 export default function log(level: logLevel, message?: string, error?: string, relayData?: {
