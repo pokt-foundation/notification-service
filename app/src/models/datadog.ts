@@ -59,3 +59,11 @@ export type ApplicationLog = LambdaLog & {
   applicationAddress: string,
   applicationPublicKey: string,
 }
+
+export function isLoadBalancerLog(log: LoadBalancerLog | ApplicationLog): log is LoadBalancerLog {
+  return (log as LoadBalancerLog).loadBalancerName !== undefined;
+}
+
+export function isApplicationLog(log: LoadBalancerLog | ApplicationLog): log is ApplicationLog {
+  return (log as ApplicationLog).applicationAddress !== undefined;
+}

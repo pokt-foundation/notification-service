@@ -36,3 +36,11 @@ export function getTodayUtcDate(): string {
 
   return todayBucket
 }
+
+export function getHourFromUtcDate(date: string): string {
+  dayjs.extend(dayJsutcPlugin)
+
+  const time = dayjs(date)
+
+  return time.format('HH:mm')
+}
