@@ -44,3 +44,12 @@ export function getHourFromUtcDate(date: string): string {
 
   return time.format('HH:mm')
 }
+
+// Returns today's date in the format of `DD/MM/YYYY`
+export function getTodayStringTime(): string {
+  dayjs.extend(dayJsutcPlugin)
+
+  const time = dayjs()
+
+  return time.format('DD/MM/YYYY')
+}

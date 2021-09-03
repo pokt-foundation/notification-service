@@ -11,3 +11,5 @@ export const convertToMap = <T>(array: T[], fieldKey: string): Map<string, T> =>
 
   return result
 }
+
+export const formatNumber = (num: number) => new Intl.NumberFormat('en-IN').format(num)

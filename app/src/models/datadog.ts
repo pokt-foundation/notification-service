@@ -47,11 +47,12 @@ export type LambdaLog = {
   relaysUsed: number;
   maxRelays: number;
   percentageUsed: number;
+  email: string;
 }
 
 export type LoadBalancerLog = LambdaLog & {
   loadBalancerName: string;
-  loadBalancerApps?: string[];
+  loadBalancerApps: string[];
   loadBalancerId: string;
 }
 
