@@ -47,8 +47,10 @@ Parameters:
   DataDogSite:
     Type: String
     NoEcho: true
+  WebHookURL:
+    Type: String
+    NoEcho: true
   
-
 Globals:
   Function:
     Timeout: 60
@@ -63,7 +65,7 @@ Resources:
       Description: Notifies of endpoints which overrun the allowed stake
       CodeUri: app/
       Handler: dist/functions/notify-endpoint-usage/app.handler
-      Runtime: nodejs12.x
+      Runtime: nodejs14.x
       MemorySize: 400
       Environment:
         Variables:
@@ -89,13 +91,14 @@ Resources:
       Description: Sends notification to discord on apps/lbs that overran their stake
       CodeUri: app/
       Handler: dist/functions/send-discord-notification/app.handler
-      Runtime: nodejs12.x
+      Runtime: nodejs14.x
       MemorySize: 128
       Environment:
         Variables:
           DD_SITE: !Ref DataDogSite
           DD_API_KEY: !Ref DataDogApiKey
           DD_APP_KEY: !Ref DataDogAppKey
+          WEBHOOK_URL: !Ref WebHookURL
 
 Outputs:
   NotifyEndpointUsage:
