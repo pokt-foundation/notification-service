@@ -11,13 +11,16 @@ export type Log = {
   loadBalancerName?: string
   loadBalancerApps?: string[],
   applicationAddress?: string,
+  applicationPublicKey?: string,
   maxRelays?: number
   relaysUsed?: number
   percentageUsed?: number
+
 }
 
 export default function log(level: logLevel, message?: string, error?: string, relayData?: {
   applicationAddress?: string
+  applicationPublicKey?: string
   loadBalancerId?: string,
   loadBalancerName?: string
   loadBalancerApps?: string[],

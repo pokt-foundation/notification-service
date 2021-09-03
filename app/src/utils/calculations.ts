@@ -43,12 +43,13 @@ export function getApplicationsUsage(networkData: Map<string, Application>, infl
     }
 
     if (applicationData.percentageUsed > 100) {
-      const { address: applicationAddress, relaysUsed, maxRelays, percentageUsed } = applicationData
+      const { publicKey: applicationPublicKey, address: applicationAddress, relaysUsed, maxRelays, percentageUsed } = applicationData
       log('warn', 'Application over 100% threshold', undefined, {
         applicationAddress,
         relaysUsed,
         maxRelays,
-        percentageUsed
+        percentageUsed,
+        applicationPublicKey
       })
     }
 
