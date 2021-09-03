@@ -37,7 +37,7 @@ export interface INotificationSettings {
 export interface IApplication extends Document {
   chain: string
   name: string
-  user: Types.ObjectId
+  user: Types.ObjectId | string
   freeTier: boolean
   status: string
   lastChangedStatusAt: Date | number

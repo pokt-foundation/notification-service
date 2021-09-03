@@ -18,11 +18,7 @@ export type ApplicationData = {
   maxRelays: number
   relaysUsed: number,
   percentageUsed: number
-}
-
-export type ExtendedApplicationData = ApplicationData & {
-  email: string
-  thresholdExceeded: number
+  email?: string
 }
 
 type ActiveApplications = ApplicationData & { id: string }
@@ -36,7 +32,8 @@ export type ExtendedLoadBalancerData = {
   maxRelays: number,
   relaysUsed: number
   activeApplications: ActiveApplications[]
-  notificationSettings: INotificationSettings
+  notificationSettings: INotificationSettings,
+  email?: string
 }
 
 export type ExtendedLoadBalancer = {
