@@ -49,12 +49,13 @@ export type LambdaLog = {
   percentageUsed: number;
 }
 
-export type LoadBalancerLog = Lambda & {
+export type LoadBalancerLog = LambdaLog & {
   loadBalancerName: string;
   loadBalancerApps?: string[];
   loadBalancerId: string;
 }
 
-export type ApplicationLog = Lambda & {
+export type ApplicationLog = LambdaLog & {
   applicationAddress: string,
+  applicationPublicKey: string,
 }

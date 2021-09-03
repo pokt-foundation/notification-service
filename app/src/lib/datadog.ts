@@ -1,4 +1,4 @@
-import axios, { AxiosResponse } from 'axios'
+import axios, { AxiosResponse, AxiosError } from 'axios'
 import { DataDogResponse } from '../models/datadog'
 import log from './logger'
 
@@ -14,7 +14,7 @@ export async function getQueryResults<T>(query: string): Promise<T[]> {
     try {
       return await axios.post(url, body, { headers: AUTHENTICATION_HEADERS })
     } catch (err) {
-      log('error', 'failed retrieving logs from DataDog', err)
+      log('error', 'failed retrieving logs from DataDog', (err as unknown as AxiosError).message)
       throw err
     }
   }
@@ -24,7 +24,7 @@ export async function getQueryResults<T>(query: string): Promise<T[]> {
   while (cursor !== undefined) {
     const res: AxiosResponse<DataDogResponse<T>> = await performRequest('https://api.datadoghq.eu/api/v2/logs/events/search', {
       filter: {
-        from: "now-1d",
+        from: "now-8h",
 
         query: `service:notify-endpoint-usage ${query}`,
         to: "now"
@@ -36,10 +36,11 @@ export async function getQueryResults<T>(query: string): Promise<T[]> {
       ...(cursor ? {
         page: { cursor }
       } : undefined),
+      sort: 'timestamp'
     })
 
     res.data.data.forEach((entry: any) => {
-      results.push(entry)
+      results.push(entry.attributes.attributes)
     })
 
     cursor = res.data.meta?.page?.after
