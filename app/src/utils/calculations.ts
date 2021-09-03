@@ -74,6 +74,7 @@ export async function getApplicationsUsage(networkData: Map<string, Application>
       status,
       relaysUsed,
       email,
+      name: dbApp.name,
       stakedTokens: Number(stakedTokens),
       maxRelays: Number(maxRelays),
       percentageUsed: calculateRelaysPercentage(relaysUsed, Number(maxRelays))
@@ -81,13 +82,14 @@ export async function getApplicationsUsage(networkData: Map<string, Application>
 
     if (applicationData.percentageUsed > 100) {
 
-      const { publicKey: applicationPublicKey, address: applicationAddress, relaysUsed, maxRelays, percentageUsed, email } = applicationData
+      const { publicKey: applicationPublicKey, address: applicationAddress, relaysUsed, maxRelays, percentageUsed, email, name: applicationName } = applicationData
       log('warn', `Application over ${THRESHOLD_LIMIT}% threshold`, undefined, {
         applicationAddress,
         applicationPublicKey,
         relaysUsed,
         maxRelays,
         percentageUsed,
+        applicationName,
         email,
       })
     }

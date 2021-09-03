@@ -19,6 +19,7 @@ export type ApplicationData = {
   relaysUsed: number,
   percentageUsed: number
   email?: string
+  name: string
 }
 
 type ActiveApplications = ApplicationData & { id: string }

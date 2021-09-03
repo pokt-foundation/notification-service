@@ -44,8 +44,8 @@ function mapsExceededThresholds<T extends LambdaLog>(logs: T[]): Map<string, T[]
 // [loadBalancerName, email, relaysUsed, maxRelays, relaysUsed, percentageUsed, loadBalancerApps]
 type LoadBalancerRow = [string, string, number | string, number | string, number | string, string]
 
-// [applicationPublicKey, applicationAddress, email, relaysUsed, maxRelays, percentageUsed]
-type ApplicationRow = [string, string, string, number | string, number | string, number | string]
+// [applicationPublicKey, applicationAddress, applicationName, email, relaysUsed, maxRelays, percentageUsed]
+type ApplicationRow = [string, string, string, string, number | string, number | string, number | string]
 
 function formatRecords(records: LoadBalancerLog[] | ApplicationLog[]) {
   const formatted: LoadBalancerRow[] | ApplicationRow[] = []
@@ -53,12 +53,12 @@ function formatRecords(records: LoadBalancerLog[] | ApplicationLog[]) {
   for (const log of records) {
     if (isApplicationLog(log)) {
       if (formatted.length === 0) {
-        const entry: ApplicationRow = ['Public Key', 'Address', 'Email', 'Relays used', 'Max relays', 'Percentage used']
+        const entry: ApplicationRow = ['Public Key', 'Address', 'Name', 'Email', 'Relays used', 'Max relays', 'Percentage used']
 
           ; (formatted as ApplicationRow[]).push(entry)
       }
-      const { applicationPublicKey, applicationAddress, email, relaysUsed, maxRelays, percentageUsed } = log
-      const entry: ApplicationRow = [applicationPublicKey, applicationAddress, email, formatNumber(relaysUsed), formatNumber(maxRelays), percentageUsed]
+      const { applicationPublicKey, applicationAddress, email, applicationName, relaysUsed, maxRelays, percentageUsed } = log
+      const entry: ApplicationRow = [applicationPublicKey, applicationAddress, applicationName, email, formatNumber(relaysUsed), formatNumber(maxRelays), percentageUsed]
         ; (formatted as ApplicationRow[]).push(entry)
     } else {
       if (formatted.length === 0) {

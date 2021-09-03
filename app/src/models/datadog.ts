@@ -59,6 +59,7 @@ export type LoadBalancerLog = LambdaLog & {
 export type ApplicationLog = LambdaLog & {
   applicationAddress: string,
   applicationPublicKey: string,
+  applicationName: string
 }
 
 export function isLoadBalancerLog(log: LoadBalancerLog | ApplicationLog): log is LoadBalancerLog {
