@@ -47,7 +47,10 @@ Parameters:
   DataDogSite:
     Type: String
     NoEcho: true
-  WebHookURL:
+  DiscordToken:
+    Type: String
+    NoEcho: true
+  ChannelId:
     Type: String
     NoEcho: true
   
@@ -66,7 +69,7 @@ Resources:
       CodeUri: app/
       Handler: dist/functions/notify-endpoint-usage/app.handler
       Runtime: nodejs14.x
-      MemorySize: 400
+      MemorySize: 500
       Environment:
         Variables:
           EMAIL_API_KEY: !Ref EmailApiKey
@@ -92,13 +95,14 @@ Resources:
       CodeUri: app/
       Handler: dist/functions/send-discord-notification/app.handler
       Runtime: nodejs14.x
-      MemorySize: 128
+      MemorySize: 500
       Environment:
         Variables:
           DD_SITE: !Ref DataDogSite
           DD_API_KEY: !Ref DataDogApiKey
           DD_APP_KEY: !Ref DataDogAppKey
-          WEBHOOK_URL: !Ref WebHookURL
+          DISCORD_TOKEN: !Ref DiscordToken
+          CHANNEL_ID: !Ref ChannelId
 
 Outputs:
   NotifyEndpointUsage:
