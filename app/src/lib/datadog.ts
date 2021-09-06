@@ -24,7 +24,7 @@ export async function getQueryResults<T>(query: string): Promise<T[]> {
   while (cursor !== undefined) {
     const res: AxiosResponse<DataDogResponse<T>> = await performRequest('https://api.datadoghq.eu/api/v2/logs/events/search', {
       filter: {
-        from: "now-1d",
+        from: "now-2h",
 
         query: `service:notify-endpoint-usage ${query}`,
         to: "now"

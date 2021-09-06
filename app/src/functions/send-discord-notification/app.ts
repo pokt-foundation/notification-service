@@ -3,6 +3,11 @@ import { ApplicationLog, isApplicationLog, LambdaLog, LoadBalancerLog } from '..
 import { getHourFromUtcDate, getTodayStringTime } from '../../lib/date-utils';
 import { table } from 'table';
 import { formatNumber } from '../../utils/helpers';
+import { sendDiscordMessage } from '../../lib/discord';
+
+const DISCORD_MESSAGE_LIMIT = 2000
+
+type availableLogs = LoadBalancerLog | ApplicationLog
 
 // Goes through all the values and constantly updates the map with the most recent one,
 // as the logs already come sorted, thereby only keeping the latest log of each hour
@@ -20,8 +25,8 @@ function filterMinimunDuplicates<T extends LambdaLog>(logs: T[]): T[] {
 }
 
 // Returns a map of exceeded logs based on their hourstamp 
-function mapsExceededThresholds<T extends LambdaLog>(logs: T[]): Map<string, T[]> {
-  const logsMap = new Map<string, T[]>()
+function mapsExceededThresholds(logs: availableLogs[]): Map<string, availableLogs[]> {
+  const logsMap = new Map<string, availableLogs[]>()
 
   logs.forEach(log => logsMap.set(log.id,
     [...(logsMap.get(log.id) || []), log]))
@@ -30,75 +35,107 @@ function mapsExceededThresholds<T extends LambdaLog>(logs: T[]): Map<string, T[]
     const filtered = filterMinimunDuplicates(logs)
     logsMap.set(id, filtered)
   }
-
-  const timestampLogs = new Map<string, T[]>()
-  for (const [_, logs] of logsMap.entries()) {
-    logs.forEach(log => timestampLogs.set(log.hourstamp,
-      [...(timestampLogs.get(log.hourstamp) || []), log]))
-  }
-
-  return timestampLogs
+  return logsMap
 }
 
-// All of the rows should allow string to write the header
-// [loadBalancerName, email, relaysUsed, maxRelays, relaysUsed, percentageUsed, loadBalancerApps]
-type LoadBalancerRow = [string, string, number | string, number | string, number | string, string]
+function formatRecords(records: availableLogs[]) {
+  const formatted: any[] = []
 
-// [applicationPublicKey, applicationAddress, applicationName, email, relaysUsed, maxRelays, percentageUsed]
-type ApplicationRow = [string, string, string, string, number | string, number | string, number | string]
-
-function formatRecords(records: LoadBalancerLog[] | ApplicationLog[]) {
-  const formatted: LoadBalancerRow[] | ApplicationRow[] = []
+  const relaysRow = ['Hour', 'Relays used', 'Max relays', 'Percentage used']
 
   for (const log of records) {
+    // Empty array values as table rows need to have the same length
     if (isApplicationLog(log)) {
-      if (formatted.length === 0) {
-        const entry: ApplicationRow = ['Public Key', 'Address', 'Name', 'Email', 'Relays used', 'Max relays', 'Percentage used']
+      const { applicationAddress: address, applicationName: name,
+        email, hourstamp, relaysUsed, maxRelays, percentageUsed } = log
 
-          ; (formatted as ApplicationRow[]).push(entry)
-      }
-      const { applicationPublicKey, applicationAddress, email, applicationName, relaysUsed, maxRelays, percentageUsed } = log
-      const entry: ApplicationRow = [applicationPublicKey, applicationAddress, applicationName, email, formatNumber(relaysUsed), formatNumber(maxRelays), percentageUsed]
-        ; (formatted as ApplicationRow[]).push(entry)
-    } else {
       if (formatted.length === 0) {
-        const entry: LoadBalancerRow = ['Name', 'Email', 'Relays used', 'Max relays', 'Percentage used', 'Apps']
-          ; (formatted as LoadBalancerRow[]).push(entry)
+        const appInfo = ['Address', 'Name', 'Email', '']
+
+        formatted.push(
+          appInfo,
+          [address, name, email, ''],
+          relaysRow)
       }
-      const { loadBalancerName, email, relaysUsed, maxRelays, percentageUsed, loadBalancerApps } = log
-      const entry: LoadBalancerRow = [loadBalancerName, email, formatNumber(relaysUsed), formatNumber(maxRelays), percentageUsed, loadBalancerApps.join("\n")]
-        ; (formatted as LoadBalancerRow[]).push(entry)
+      const entry = [getHourFromUtcDate(hourstamp), formatNumber(relaysUsed), formatNumber(maxRelays), percentageUsed]
+      formatted.push(entry)
+    } else {
+      const { loadBalancerName: name, hourstamp,
+        email, relaysUsed, maxRelays, percentageUsed,
+        loadBalancerApps: apps, loadBalancerId: id } = log
+
+      if (formatted.length === 0) {
+        const entry = ['Name', 'Email', 'ID', 'Apps']
+
+        formatted.push(entry, [name, email, id, apps.join("\n")], relaysRow)
+      }
+      const entry = [getHourFromUtcDate(hourstamp), formatNumber(relaysUsed), formatNumber(maxRelays), percentageUsed]
+      formatted.push(entry)
     }
   }
 
   return formatted
 }
 
-function buildOutputStr(title: string, data: Map<string, LoadBalancerLog[] | ApplicationLog[]>): string {
+function buildOutputStr(title: string, data: Map<string, availableLogs[]>, maxLength: number): string[] {
   let message = title
-  for (const [key, value] of data) {
-    message += `\n${getHourFromUtcDate(key)}\n`
+  for (const [_, value] of data) {
+    message += "\n"
+    // Doesn't add unncessesary row length as public key is too long
+    if (isApplicationLog(value[0])) {
+      message += `Public Key: ${value[0].applicationPublicKey}\n`
+    }
+
     const ouput = table(formatRecords(value), { drawHorizontalLine: () => false })
-    message += `${ouput}\n`
+    message += ouput
   }
 
-  return message
+  // splitMessage recursively splits a multiline string until is lower than the maximum 
+  // length allowed, this is because Discord has a fixed characters limit per message 
+  const splitMessage = (str: string, maxLength: number, acc: string[]): string[] => {
+    if (str.length < maxLength) {
+      acc.push(str)
+      return acc
+    }
 
+    const newLineIdx = str.indexOf('\n', str.length / 2)
+    // Output might look deformed if not newline is found
+    const splitLineBy = newLineIdx > -1 ? newLineIdx : str.length / 2
+
+    const [firstHalf, secondHalf] = [str.slice(0, splitLineBy), str.slice(splitLineBy)]
+
+    splitMessage(firstHalf, maxLength, acc)
+    splitMessage(secondHalf, maxLength, acc)
+
+    return acc
+  }
+
+  const messages = splitMessage(message, maxLength, [])
+
+  // Discord code style output for better formatting
+  return messages.map(str => '```' + str + '```')
 }
 
 exports.handler = async () => {
-  const lbs = (await getQueryResults<LoadBalancerLog>('Load Balancer over 100 %')).filter(lb => lb.hourstamp).map(lb => ({ ...lb, id: lb.loadBalancerId }))
-  const apps = (await getQueryResults<ApplicationLog>('Application over 100 %')).filter(app => app.hourstamp).map(app => ({ ...app, id: app.applicationAddress }))
+  const lbs = (await getQueryResults<LoadBalancerLog>('Load Balancer over 100 %'))
+    .map(lb => ({ ...lb, id: lb.loadBalancerId }))
+  const apps = (await getQueryResults<ApplicationLog>('Application over 100 %'))
+    .map(app => ({ ...app, id: app.applicationAddress }))
+
   const lbsResult = mapsExceededThresholds(lbs)
   const appResult = mapsExceededThresholds(apps)
 
   const date = getTodayStringTime()
-  const appsMessage = buildOutputStr(`Exceeded Application Relays of [${date}] (UTC)`, appResult)
-  const lbsMessage = buildOutputStr(`Exceeded Load Balancer Relays of [${date}] (UTC)`, lbsResult)
+  const appsMessages = buildOutputStr(`Exceeded Application Relays of [${date}] (UTC)\n`, appResult, DISCORD_MESSAGE_LIMIT)
+  const lbsMessages = buildOutputStr(`Exceeded Load Balancer Relays of [${date}] (UTC)\n`, lbsResult, DISCORD_MESSAGE_LIMIT)
 
-  console.log(appsMessage)
-  console.log('\n')
-  console.log(lbsMessage)
+  for (const msg of appsMessages) {
+    await sendDiscordMessage(msg)
+  }
+
+  for (const msg of lbsMessages) {
+    await sendDiscordMessage(msg)
+  }
 
   return { message: 'ok' }
 }

@@ -5,7 +5,7 @@ const WEBHOOK_URL = process.env.WEBHOOK_URL || ""
 
 export async function sendDiscordMessage(data: object | string) {
   try {
-    return await axios.post(WEBHOOK_URL, { username: 'Notifications Bot', content: data })
+    return await axios.post(WEBHOOK_URL, { content: data })
   } catch (err) {
     log('error', 'failed sending message to discord webhook', (err as unknown as AxiosError).message)
     throw err
