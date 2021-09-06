@@ -1,11 +1,9 @@
 import { getQueryResults } from '../../lib/datadog';
 import { ApplicationLog, isApplicationLog, LambdaLog, LoadBalancerLog } from '../../models/datadog';
 import { getHourFromUtcDate, getTodayStringTime } from '../../lib/date-utils';
-import { table } from 'table';
 import { formatNumber } from '../../utils/helpers';
-import { sendDiscordMessage } from '../../lib/discord';
-
-const DISCORD_MESSAGE_LIMIT = 2000
+import { sendDiscordThresholdData, sendMessage } from '../../lib/discord';
+import { EmbedFieldData } from 'discord.js';
 
 type availableLogs = LoadBalancerLog | ApplicationLog
 
@@ -38,82 +36,45 @@ function mapsExceededThresholds(logs: availableLogs[]): Map<string, availableLog
   return logsMap
 }
 
-function formatRecords(records: availableLogs[]) {
-  const formatted: any[] = []
+function buildEmbedMessages(data: Map<string, availableLogs[]>): Map<string, EmbedFieldData[]> {
+  const messages = new Map<string, EmbedFieldData[]>()
 
-  const relaysRow = ['Hour', 'Relays used', 'Max relays', 'Percentage used']
-
-  for (const log of records) {
-    // Empty array values as table rows need to have the same length
-    if (isApplicationLog(log)) {
-      const { applicationAddress: address, applicationName: name,
-        email, hourstamp, relaysUsed, maxRelays, percentageUsed } = log
-
-      if (formatted.length === 0) {
-        const appInfo = ['Address', 'Name', 'Email', '']
-
-        formatted.push(
-          appInfo,
-          [address, name, email, ''],
-          relaysRow)
+  for (const [id, logs] of data) {
+    const message: EmbedFieldData[] = []
+    if (isApplicationLog(logs[0])) {
+      const { applicationName: name, applicationPublicKey: publicKey, applicationAddress: adddress, email } = logs[0]
+      message.push(
+        { name: 'Public Key', value: publicKey, inline: false },
+        { name: 'Address', value: adddress, inline: true },
+        { name: "Email", value: email, inline: true })
+      for (const log of logs) {
+        const { relaysUsed, maxRelays, percentageUsed, hourstamp } = log
+        message.push(
+          { name: 'Hour', value: getHourFromUtcDate(hourstamp), inline: false },
+          { name: 'Relays used', value: formatNumber(relaysUsed), inline: true },
+          { name: 'Max relays', value: formatNumber(maxRelays), inline: true },
+          { name: 'Percentage used', value: formatNumber(percentageUsed), inline: true })
       }
-      const entry = [getHourFromUtcDate(hourstamp), formatNumber(relaysUsed), formatNumber(maxRelays), percentageUsed]
-      formatted.push(entry)
+      messages.set(name, message)
     } else {
-      const { loadBalancerName: name, hourstamp,
-        email, relaysUsed, maxRelays, percentageUsed,
-        loadBalancerApps: apps, loadBalancerId: id } = log
-
-      if (formatted.length === 0) {
-        const entry = ['Name', 'Email', 'ID', 'Apps']
-
-        formatted.push(entry, [name, email, id, apps.join("\n")], relaysRow)
+      const { loadBalancerId: id, loadBalancerName: name, loadBalancerApps: apps, email } = logs[0]
+      message.push(
+        { name: 'Email', value: email, inline: false },
+        { name: 'ID', value: id, inline: true },
+        { name: "Apps", value: apps.join('\n'), inline: false })
+      for (const log of logs) {
+        const { relaysUsed, maxRelays, percentageUsed, hourstamp } = log
+        message.push(
+          { name: 'Hour', value: getHourFromUtcDate(hourstamp), inline: false },
+          { name: 'Relays used', value: formatNumber(relaysUsed), inline: true },
+          { name: 'Max relays', value: formatNumber(maxRelays), inline: true },
+          { name: 'Percentage used', value: formatNumber(percentageUsed), inline: true })
       }
-      const entry = [getHourFromUtcDate(hourstamp), formatNumber(relaysUsed), formatNumber(maxRelays), percentageUsed]
-      formatted.push(entry)
+      messages.set(name, message)
     }
   }
 
-  return formatted
-}
-
-function buildOutputStr(title: string, data: Map<string, availableLogs[]>, maxLength: number): string[] {
-  let message = title
-  for (const [_, value] of data) {
-    message += "\n"
-    // Doesn't add unncessesary row length as public key is too long
-    if (isApplicationLog(value[0])) {
-      message += `Public Key: ${value[0].applicationPublicKey}\n`
-    }
-
-    const ouput = table(formatRecords(value), { drawHorizontalLine: () => false })
-    message += ouput
-  }
-
-  // splitMessage recursively splits a multiline string until is lower than the maximum 
-  // length allowed, this is because Discord has a fixed characters limit per message 
-  const splitMessage = (str: string, maxLength: number, acc: string[]): string[] => {
-    if (str.length < maxLength) {
-      acc.push(str)
-      return acc
-    }
-
-    const newLineIdx = str.indexOf('\n', str.length / 2)
-    // Output might look deformed if not newline is found
-    const splitLineBy = newLineIdx > -1 ? newLineIdx : str.length / 2
-
-    const [firstHalf, secondHalf] = [str.slice(0, splitLineBy), str.slice(splitLineBy)]
-
-    splitMessage(firstHalf, maxLength, acc)
-    splitMessage(secondHalf, maxLength, acc)
-
-    return acc
-  }
-
-  const messages = splitMessage(message, maxLength, [])
-
-  // Discord code style output for better formatting
-  return messages.map(str => '```' + str + '```')
+  return messages
 }
 
 exports.handler = async () => {
@@ -125,17 +86,21 @@ exports.handler = async () => {
   const lbsResult = mapsExceededThresholds(lbs)
   const appResult = mapsExceededThresholds(apps)
 
+  const appsMessages = buildEmbedMessages(appResult)
+  const lbsMessages = buildEmbedMessages(lbsResult)
+
   const date = getTodayStringTime()
-  const appsMessages = buildOutputStr(`Exceeded Application Relays of [${date}] (UTC)\n`, appResult, DISCORD_MESSAGE_LIMIT)
-  const lbsMessages = buildOutputStr(`Exceeded Load Balancer Relays of [${date}] (UTC)\n`, lbsResult, DISCORD_MESSAGE_LIMIT)
+  await sendMessage(`Exceeded Application/Load Balancer Relays of [${date}]`)
 
-  for (const msg of appsMessages) {
-    await sendDiscordMessage(msg)
+  const messagesToSend = []
+  for (const [name, app] of appsMessages) {
+    messagesToSend.push(sendDiscordThresholdData(`App: ${name}`, app))
+  }
+  for (const [name, lb] of lbsMessages) {
+    messagesToSend.push(sendDiscordThresholdData(`LB: ${name}`, lb))
   }
 
-  for (const msg of lbsMessages) {
-    await sendDiscordMessage(msg)
-  }
+  await Promise.allSettled(messagesToSend)
 
   return { message: 'ok' }
 }

@@ -1,13 +1,34 @@
 import log from "./logger"
-import axios, { AxiosError } from 'axios';
+import { Client, EmbedFieldData, MessageEmbed, TextChannel, DiscordAPIError } from "discord.js";
 
-const WEBHOOK_URL = process.env.WEBHOOK_URL || ""
+const DISCORD_TOKEN = process.env.DISCORD_TOKEN_URL || ""
+const CHANNEL_ID = process.env.CHANNEL_ID || ""
 
-export async function sendDiscordMessage(data: object | string) {
+const client = new Client();
+
+(async function startClient() {
+  client.on('ready', function () { })
+  await client.login(DISCORD_TOKEN)
+})()
+
+export async function sendDiscordThresholdData(title: string, fields: EmbedFieldData[]) {
   try {
-    return await axios.post(WEBHOOK_URL, { content: data })
+    const channel = client.channels.cache.get(CHANNEL_ID)
+    const messageEmbed = new MessageEmbed().setColor('#136682').setTitle(title)
+      .addFields(fields).setTimestamp()
+    return await (channel as TextChannel).send(messageEmbed)
   } catch (err) {
-    log('error', 'failed sending message to discord webhook', (err as unknown as AxiosError).message)
+    log('error', 'failed sending embedded message to discord', (err as unknown as DiscordAPIError).message)
+    throw err
+  }
+}
+
+export async function sendMessage(content: string | object) {
+  try {
+    const channel = client.channels.cache.get(CHANNEL_ID)
+    return await (channel as TextChannel).send(content)
+  } catch (err) {
+    log('error', 'failed sending embedded message to discord', (err as unknown as DiscordAPIError).message)
     throw err
   }
 }

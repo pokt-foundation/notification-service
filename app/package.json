@@ -36,7 +36,7 @@
     "@pokt-network/pocket-js": "^0.6.13-rc",
     "axios": "^0.21.1",
     "dayjs": "^1.10.6",
-    "discord.js": "^13.1.0",
+    "discord.js": "12.5.3",
     "ioredis": "^4.27.8",
     "lodash.get": "^4.4.2",
     "mailgun-js": "^0.22.0",
