@@ -51,7 +51,7 @@ function buildEmbedMessages(data: Map<string, availableLogs[]>): Map<string, Emb
       const { applicationName: name, applicationPublicKey: publicKey, applicationAddress: adddress, email } = logs[0]
 
       // TODO: Remove after 7/9/2021 as all logs will have chains attached
-      const chains = logs[0].chains || ['-']
+      const chains = logs[logs.length - 1].chains || ['-']
       message.push(
         { name: 'Public Key', value: publicKey, inline: false },
         { name: 'Chains', value: chains.join(', '), inline: false },
@@ -70,7 +70,7 @@ function buildEmbedMessages(data: Map<string, availableLogs[]>): Map<string, Emb
       const { loadBalancerId: id, loadBalancerName: name, loadBalancerApps: apps, email } = logs[0]
 
       // TODO: Remove after 7/9/2021 as all logs will have chains attached
-      const chains = logs[0].chains || ['-']
+      const chains = logs[logs.length - 1].chains || ['-']
       message.push(
         { name: 'Email', value: email, inline: false },
         { name: 'ID', value: id, inline: true },
