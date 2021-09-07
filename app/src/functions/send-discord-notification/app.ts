@@ -1,14 +1,19 @@
 import { getQueryResults } from '../../lib/datadog';
 import { ApplicationLog, isApplicationLog, LambdaLog, LoadBalancerLog } from '../../models/datadog';
-import { getHourFromUtcDate, getTodayStringTime } from '../../lib/date-utils';
+import { getHourFromUtcDate, getTodayISODate } from '../../lib/date-utils';
 import { formatNumber } from '../../utils/helpers';
 import { sendEmbedMessage, sendMessage } from '../../lib/discord';
 import { EmbedFieldData } from 'discord.js';
 
 type availableLogs = LoadBalancerLog | ApplicationLog
 
-// Goes through all the values and constantly updates the map with the most recent one,
-// as the logs already come sorted, thereby only keeping the latest log of each hour
+
+/**
+ * Goes through all the values and constantly updates the map with the most recent one
+ * as the logs already come sorted, thereby only keeping the latest log of each hour
+ * @param logs log to filter values from 
+ * @returns 
+ */
 function filterMinimunDuplicates<T extends LambdaLog>(logs: T[]): T[] {
   const filtered: T[] = []
 
@@ -23,7 +28,7 @@ function filterMinimunDuplicates<T extends LambdaLog>(logs: T[]): T[] {
 }
 
 // Returns a map of exceeded logs based on their hourstamp 
-function mapsExceededThresholds(logs: availableLogs[]): Map<string, availableLogs[]> {
+function mapExceededThresholds(logs: availableLogs[]): Map<string, availableLogs[]> {
   const logsMap = new Map<string, availableLogs[]>()
 
   logs.forEach(log => logsMap.set(log.id,
@@ -41,6 +46,7 @@ function buildEmbedMessages(data: Map<string, availableLogs[]>): Map<string, Emb
 
   for (const [_, logs] of data) {
     const message: EmbedFieldData[] = []
+
     if (isApplicationLog(logs[0])) {
       const { applicationName: name, applicationPublicKey: publicKey, applicationAddress: adddress, email } = logs[0]
       message.push(
@@ -83,13 +89,13 @@ exports.handler = async () => {
   const apps = (await getQueryResults<ApplicationLog>('Application over 100 %'))
     .map(app => ({ ...app, id: app.applicationAddress }))
 
-  const lbsResult = mapsExceededThresholds(lbs)
-  const appResult = mapsExceededThresholds(apps)
+  const lbsResult = mapExceededThresholds(lbs)
+  const appResult = mapExceededThresholds(apps)
 
   const appsMessages = buildEmbedMessages(appResult)
   const lbsMessages = buildEmbedMessages(lbsResult)
 
-  const date = getTodayStringTime()
+  const date = getTodayISODate()
   await sendMessage(`Exceeded Application/Load Balancer Relays of [${date}]`)
 
   const messagesToSend = []
