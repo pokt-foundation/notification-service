@@ -66,7 +66,7 @@ async function logEntityThreshold(entity: ApplicationData | ExtendedLoadBalancer
 const calculateRelaysPercentage = (relays: number, maxRelays: number) => parseFloat(((relays / maxRelays) * 100).toFixed(2))
 
 const getUserEmail = async (id: string | undefined): Promise<string> => {
-  if (id= undefined || id.length <= 1) {
+  if (id == undefined || id.length <= 1) {
     return ''
   }
   try {
