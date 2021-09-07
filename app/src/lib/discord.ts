@@ -1,7 +1,7 @@
 import log from "./logger"
 import { Client, EmbedFieldData, MessageEmbed, TextChannel, DiscordAPIError } from "discord.js";
 
-const DISCORD_TOKEN = process.env.DISCORD_TOKEN_URL || ""
+const DISCORD_TOKEN = process.env.DISCORD_TOKEN || ""
 const CHANNEL_ID = process.env.CHANNEL_ID || ""
 const EMBED_COLOR = '#136682'
 

@@ -85,6 +85,16 @@ Resources:
         SecurityGroupIds: 
          - !Ref SecurityGroupID
         SubnetIds: !Ref SubnetIDs
+      Events:
+        ScheduledEvent:
+          Type: Schedule
+          Properties:
+            Schedule: cron(0/5 * * * ? *)
+            Enabled: True
+            RetryPolicy:
+              MaximumEventAgeInSeconds: 180
+              MaximumRetryAttempts: 3
+
   SendDiscordNotification:
     Type: AWS::Serverless::Function 
     Metadata:
@@ -103,7 +113,15 @@ Resources:
           DD_APP_KEY: !Ref DataDogAppKey
           DISCORD_TOKEN: !Ref DiscordToken
           CHANNEL_ID: !Ref ChannelId
-
+      Events:
+        ScheduledEvent:
+          Type: Schedule
+          Properties:
+            Schedule: cron(0 6 * * ? *)
+            Enabled: True
+            RetryPolicy:
+              MaximumEventAgeInSeconds: 180
+              MaximumRetryAttempts: 3
 Outputs:
   NotifyEndpointUsage:
     Description: "Notify Endpoint Usage Lambda Function ARN"
