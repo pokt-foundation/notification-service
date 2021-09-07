@@ -11,7 +11,7 @@ const client = new Client();
   await client.login(DISCORD_TOKEN)
 })()
 
-export async function sendDiscordThresholdData(title: string, fields: EmbedFieldData[]) {
+export async function sendEmbedMessage(title: string, fields: EmbedFieldData[]) {
   try {
     const channel = client.channels.cache.get(CHANNEL_ID)
     const messageEmbed = new MessageEmbed().setColor('#136682').setTitle(title)

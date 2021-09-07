@@ -2,7 +2,7 @@ import { getQueryResults } from '../../lib/datadog';
 import { ApplicationLog, isApplicationLog, LambdaLog, LoadBalancerLog } from '../../models/datadog';
 import { getHourFromUtcDate, getTodayStringTime } from '../../lib/date-utils';
 import { formatNumber } from '../../utils/helpers';
-import { sendDiscordThresholdData, sendMessage } from '../../lib/discord';
+import { sendEmbedMessage, sendMessage } from '../../lib/discord';
 import { EmbedFieldData } from 'discord.js';
 
 type availableLogs = LoadBalancerLog | ApplicationLog
@@ -39,7 +39,7 @@ function mapsExceededThresholds(logs: availableLogs[]): Map<string, availableLog
 function buildEmbedMessages(data: Map<string, availableLogs[]>): Map<string, EmbedFieldData[]> {
   const messages = new Map<string, EmbedFieldData[]>()
 
-  for (const [id, logs] of data) {
+  for (const [_, logs] of data) {
     const message: EmbedFieldData[] = []
     if (isApplicationLog(logs[0])) {
       const { applicationName: name, applicationPublicKey: publicKey, applicationAddress: adddress, email } = logs[0]
@@ -94,10 +94,10 @@ exports.handler = async () => {
 
   const messagesToSend = []
   for (const [name, app] of appsMessages) {
-    messagesToSend.push(sendDiscordThresholdData(`App: ${name}`, app))
+    messagesToSend.push(sendEmbedMessage(`App: ${name}`, app))
   }
   for (const [name, lb] of lbsMessages) {
-    messagesToSend.push(sendDiscordThresholdData(`LB: ${name}`, lb))
+    messagesToSend.push(sendEmbedMessage(`LB: ${name}`, lb))
   }
 
   await Promise.allSettled(messagesToSend)
