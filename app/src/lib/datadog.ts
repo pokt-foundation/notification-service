@@ -14,7 +14,11 @@ export async function getQueryResults<T>(query: string): Promise<T[]> {
     try {
       return await axios.post(url, body, { headers: AUTHENTICATION_HEADERS })
     } catch (err) {
-      log('error', 'failed retrieving logs from DataDog', (err as unknown as AxiosError).message)
+      log(
+        'error',
+        'failed retrieving logs from DataDog',
+        (err as unknown as AxiosError).message
+      )
       throw err
     }
   }
@@ -22,22 +26,27 @@ export async function getQueryResults<T>(query: string): Promise<T[]> {
   let cursor: string | undefined = ''
 
   while (cursor !== undefined) {
-    const res: AxiosResponse<DataDogResponse<T>> = await performRequest('https://api.datadoghq.eu/api/v2/logs/events/search', {
-      filter: {
-        from: "now-1d",
+    const res: AxiosResponse<DataDogResponse<T>> = await performRequest(
+      'https://api.datadoghq.eu/api/v2/logs/events/search',
+      {
+        filter: {
+          from: 'now-1d',
 
-        query: `service:notify-endpoint-usage ${query}`,
-        to: "now"
-      },
-      options: {
-        timeOffset: 0,
-        timezone: "UTC"
-      },
-      ...(cursor ? {
-        page: { cursor }
-      } : undefined),
-      sort: 'timestamp'
-    })
+          query: `service:notify-endpoint-usage ${query}`,
+          to: 'now',
+        },
+        options: {
+          timeOffset: 0,
+          timezone: 'UTC',
+        },
+        ...(cursor
+          ? {
+              page: { cursor },
+            }
+          : undefined),
+        sort: 'timestamp',
+      }
+    )
 
     res.data.data.forEach((entry: any) => {
       results.push(entry.attributes.attributes)
