@@ -1,6 +1,8 @@
 import dayjs from 'dayjs'
 import dayJsutcPlugin from 'dayjs/plugin/utc'
 
+const ISO_FORMAT = 'DD/MM/YYYY'
+
 export function getUTCTimestamp(): string {
   const timestamp = new Date()
 
@@ -46,12 +48,12 @@ export function getHourFromUtcDate(date: string): string {
 }
 
 // Returns today's date in the format of `DD/MM/YYYY`
-export function getTodayStringTime(): string {
+export function getTodayISODate(): string {
   dayjs.extend(dayJsutcPlugin)
 
   const time = dayjs()
 
-  return time.format('DD/MM/YYYY')
+  return time.format(ISO_FORMAT)
 }
 
 export function getSecondsForNextHour(): number {
