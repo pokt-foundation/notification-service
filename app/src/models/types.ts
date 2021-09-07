@@ -35,6 +35,7 @@ export type ExtendedLoadBalancerData = {
   activeApplications: ActiveApplications[]
   notificationSettings: INotificationSettings,
   email?: string
+  chains: string[]
 }
 
 export type ExtendedLoadBalancer = {
