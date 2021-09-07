@@ -1,19 +1,72 @@
 
 import { Application } from '@pokt-network/pocket-js';
-import { ApplicationData, ExtendedLoadBalancer, ExtendedLoadBalancerData, GetUsageDataQuery } from '../models/types';
+import { ApplicationData, ExtendedLoadBalancerData, GetUsageDataQuery, isApplicationData } from '../models/types';
 import { IApplication } from '../models/Application';
 import { ILoadBalancer } from '../models/LoadBalancer';
 import { convertToMap } from './helpers';
 import log from '../lib/logger';
-import User, { IUser } from '../models/User';
+import User from '../models/User';
 import { Types } from 'mongoose';
+import redis from '../lib/redis';
+import { getSecondsForNextHour } from '../lib/date-utils';
+
+// Values are only log at most twice per hour, the first time they trigger and
+// within the last minutes of the variable, this is to not log the same warning many
+// times as we're only interested on the maximum value per hour
+const SECONDS_TO_RELOG = 360 // 6 min
 
 const THRESHOLD_LIMIT = parseInt(process.env.THRESHOLD_LIMIT || '100')
+
+async function logEntityThreshold(entity: ApplicationData | ExtendedLoadBalancerData) {
+  const remainingSecondsOnHour = getSecondsForNextHour()
+
+  if (isApplicationData(entity)) {
+    const { address, publicKey, relaysUsed, maxRelays, percentageUsed, email, name, chains } = entity
+    const cached = await redis.get(`nt-app-${address}`)
+
+    if (!cached || remainingSecondsOnHour <= SECONDS_TO_RELOG) {
+      log('warn', `Application over ${THRESHOLD_LIMIT}% threshold`, undefined, {
+        applicationAddress: address,
+        applicationPublicKey: publicKey,
+        applicationName: name,
+        relaysUsed,
+        maxRelays,
+        percentageUsed,
+        email,
+        chains
+      })
+
+      if (!cached) {
+        await redis.set(`nt-app-${address}`, 'true', 'EX', remainingSecondsOnHour)
+      }
+    }
+  } else {
+    const { id, name, chains, activeApplications, relaysUsed, maxRelays, email, percentageUsed } = entity
+    const cached = await redis.get(`nt-lb-${id}`)
+
+    if (!cached || remainingSecondsOnHour <= SECONDS_TO_RELOG) {
+      log('warn', `Load Balancer over ${THRESHOLD_LIMIT}% threshold`, undefined, {
+        loadBalancerId: id,
+        loadBalancerName: name,
+        loadBalancerApps: activeApplications.map(app => app.address),
+        relaysUsed,
+        maxRelays,
+        percentageUsed,
+        email,
+        chains
+      })
+
+      if (!cached) {
+        await redis.set(`nt-lb-${id}`, 'true', 'EX', remainingSecondsOnHour)
+      }
+    }
+  }
+}
 
 const calculateRelaysPercentage = (relays: number, maxRelays: number) => parseFloat(((relays / maxRelays) * 100).toFixed(2))
 
 const getUserEmail = async (id: string | undefined): Promise<string> => {
-  if (id === undefined) {
+  if (id === undefined || id.length <= 1) {
     return ''
   }
   try {
@@ -80,18 +133,8 @@ export async function getApplicationsUsage(networkData: Map<string, Application>
       percentageUsed: calculateRelaysPercentage(relaysUsed, Number(maxRelays))
     }
 
-    if (applicationData.percentageUsed > 100) {
-
-      const { publicKey: applicationPublicKey, address: applicationAddress, relaysUsed, maxRelays, percentageUsed, email, name: applicationName } = applicationData
-      log('warn', `Application over ${THRESHOLD_LIMIT}% threshold`, undefined, {
-        applicationAddress,
-        applicationPublicKey,
-        relaysUsed,
-        maxRelays,
-        percentageUsed,
-        applicationName,
-        email,
-      })
+    if (applicationData.percentageUsed > THRESHOLD_LIMIT) {
+      logEntityThreshold(applicationData)
     }
 
     applicationsData.push(applicationData)
@@ -157,8 +200,9 @@ export async function getLoadBalancersUsage(appData: ApplicationData[], dbApps: 
     } else {
       const email = await getUserEmail(userID.toString())
 
+      // TODO: Change chain to chains when the Application schema is updated
       /// @ts-ignore
-      extendedLBData.set(lbID, { userID, name, email, applicationIDs, id: lbID })
+      extendedLBData.set(lbID, { chains: [dbApp.chain], userID, name, email, applicationIDs, id: lbID })
 
       const extendedLB = extendedLBData.get(lbID) as ExtendedLoadBalancerData
       extendedLB.maxRelays = app.maxRelays
@@ -175,21 +219,13 @@ export async function getLoadBalancersUsage(appData: ApplicationData[], dbApps: 
   for (const [id, _] of extendedLBData.entries()) {
     const lb = extendedLBData.get(id) as ExtendedLoadBalancerData
     lb.maxRelays += getInactiveAppRelays(lb)
-    const { relaysUsed, maxRelays, name, activeApplications } = lb
+    const { relaysUsed, maxRelays } = lb
     lb.percentageUsed = calculateRelaysPercentage(relaysUsed, maxRelays)
 
     extendedLBData.set(id, lb)
 
-    if (lb.percentageUsed > 100) {
-      log('warn', `Load Balancer over ${THRESHOLD_LIMIT}% threshold`, undefined, {
-        loadBalancerId: id,
-        loadBalancerName: name,
-        loadBalancerApps: activeApplications.map(app => app.address),
-        maxRelays: lb.maxRelays,
-        relaysUsed: relaysUsed,
-        percentageUsed: lb.percentageUsed,
-        email: lb.email,
-      })
+    if (lb.percentageUsed > THRESHOLD_LIMIT) {
+      logEntityThreshold(lb)
     }
   }
 

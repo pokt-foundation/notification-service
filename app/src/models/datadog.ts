@@ -48,6 +48,7 @@ export type LambdaLog = {
   maxRelays: number;
   percentageUsed: number;
   email: string;
+  chains: string[];
 }
 
 export type LoadBalancerLog = LambdaLog & {

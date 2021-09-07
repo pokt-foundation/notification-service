@@ -35,8 +35,13 @@ export type ExtendedLoadBalancerData = {
   activeApplications: ActiveApplications[]
   notificationSettings: INotificationSettings,
   email?: string
+  chains: string[]
 }
 
 export type ExtendedLoadBalancer = {
   [any: string]: ExtendedLoadBalancerData
+}
+
+export function isApplicationData(entity: ApplicationData | ExtendedLoadBalancerData): entity is ApplicationData {
+  return (entity as ApplicationData).address !== undefined;
 }
