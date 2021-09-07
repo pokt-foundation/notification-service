@@ -10,13 +10,9 @@ import log from '../../lib/logger';
 import { getApplicationsUsage, getLoadBalancersUsage } from '../../utils/calculations';
 import { getModelFromDBOrCache } from "../../utils/db";
 import { convertToMap } from '../../utils/helpers';
-
-const REDIS_HOST = process.env.REDIS_HOST || "";
-const REDIS_PORT = process.env.REDIS_PORT || "";
+import redis from '../../lib/redis';
 
 const CACHE_TTL = parseInt(process.env.NETWORK_CACHE_TTL ?? '') || 3600;
-
-const redis = new Redis(parseInt(REDIS_PORT), REDIS_HOST)
 
 exports.handler = async () => {
   await connect()

@@ -40,3 +40,7 @@ export type ExtendedLoadBalancerData = {
 export type ExtendedLoadBalancer = {
   [any: string]: ExtendedLoadBalancerData
 }
+
+export function isApplicationData(entity: ApplicationData | ExtendedLoadBalancerData): entity is ApplicationData {
+  return (entity as ApplicationData).address !== undefined;
+}
