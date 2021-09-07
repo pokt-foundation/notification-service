@@ -4,6 +4,7 @@ import log from '../lib/logger'
 const CACHE_TTL = parseInt(process.env.NETWORK_CACHE_TTL ?? '') || 3600
 
 export async function getModelFromDBOrCache<T>(
+  // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
   redis: any,
   model: Model<T, {}, {}>,
   cacheKey: string

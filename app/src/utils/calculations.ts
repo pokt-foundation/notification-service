@@ -10,7 +10,6 @@ import { ILoadBalancer } from '../models/LoadBalancer'
 import { convertToMap } from './helpers'
 import log from '../lib/logger'
 import User from '../models/User'
-import { Types } from 'mongoose'
 import redis from '../lib/redis'
 import { getSecondsForNextHour } from '../lib/date-utils'
 
@@ -119,8 +118,6 @@ const getUserEmail = async (id: string | undefined): Promise<string> => {
 
     return email
   } catch (e) {
-    if ((id as any) instanceof Types.ObjectId) {
-    }
     log(
       'error',
       `failure trying to fetch email for app/lb on value: ${id}`,
@@ -139,7 +136,6 @@ export async function getApplicationsUsage(
 
   const queryData = convertToMap(influxData, 'applicationPublicKey')
 
-  let i = 0
   influxData.forEach(async (entry) => {
     const networkApp = networkData.get(entry.applicationPublicKey)
 
@@ -203,7 +199,7 @@ export async function getLoadBalancersUsage(
   loadBalancers: Map<string, ILoadBalancer>,
   networkApps: Map<string, Application>
 ): Promise<Map<string, ExtendedLoadBalancerData>> {
-  let extendedLBData: Map<string, ExtendedLoadBalancerData> = new Map<
+  const extendedLBData: Map<string, ExtendedLoadBalancerData> = new Map<
     string,
     ExtendedLoadBalancerData
   >()
@@ -252,6 +248,7 @@ export async function getLoadBalancersUsage(
       continue
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const lb = loadBalancers.get(lbId)!
 
     const { _id: lbID, user: userID, name, applicationIDs } = lb

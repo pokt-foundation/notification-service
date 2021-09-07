@@ -1,4 +1,3 @@
-import Redis from 'ioredis'
 import { Application } from '@pokt-network/pocket-js'
 import { getUsageData } from '../../lib/influx'
 import connect from '../../lib/db'
@@ -57,15 +56,16 @@ exports.handler = async () => {
   )
 
   const loadBalancers: Map<string, ILoadBalancer> = convertToMap(
-    await // @ts-ignore
-    retryEvery(
-      getModelFromDBOrCache.bind(
-        null,
-        redis,
-        LoadBalancerModel,
-        'nt-loadBalancers'
-      )
-    ),
+    await
+      retryEvery(
+        // @ts-ignore
+        getModelFromDBOrCache.bind(
+          null,
+          redis,
+          LoadBalancerModel,
+          'nt-loadBalancers'
+        )
+      ),
     '_id'
   )
 

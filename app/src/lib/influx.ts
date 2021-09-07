@@ -1,4 +1,4 @@
-import { InfluxDB, RequestTimedOutError } from '@influxdata/influxdb-client'
+import { InfluxDB } from '@influxdata/influxdb-client'
 import { GetUsageDataQuery } from '../models/types'
 import { getHoursFromNowUtcDate, getUTCTimestamp } from './date-utils'
 import log from './logger'
@@ -20,7 +20,7 @@ export function buildAppUsageQuery({
 }: {
   start: string
   stop: string
-}) {
+}): string {
   return `
 total = from(bucket: "mainnetRelay10m")
 |> range(start: ${start}, stop: ${stop})

@@ -38,7 +38,7 @@ export default function log(
     chains?: string[]
   },
   additionalInfo?: object
-) {
+): void {
   const log: Log = {
     timestamp: new Date().toISOString(),
     hourstamp: getHoursFromNowUtcDate(1),
@@ -54,6 +54,7 @@ export default function log(
   switch (level) {
     case 'debug':
       console.debug(str)
+      break
     case 'info':
       console.info(str)
       break

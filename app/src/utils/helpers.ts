@@ -14,5 +14,5 @@ export const convertToMap = <T>(
   return result
 }
 
-export const formatNumber = (num: number) =>
+export const formatNumber = (num: number): string =>
   new Intl.NumberFormat('en-US').format(num)

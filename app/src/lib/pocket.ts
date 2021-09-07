@@ -5,7 +5,6 @@ import {
   Pocket,
   PocketRpcProvider,
   QueryAppResponse,
-  QueryAppsResponse,
   RpcError,
   typeGuard,
 } from '@pokt-network/pocket-js'

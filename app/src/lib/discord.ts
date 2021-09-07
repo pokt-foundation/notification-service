@@ -5,6 +5,7 @@ import {
   MessageEmbed,
   TextChannel,
   DiscordAPIError,
+  Message,
 } from 'discord.js'
 
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN || ''
@@ -13,15 +14,16 @@ const EMBED_COLOR = '#136682'
 
 const client = new Client()
 
-;(async function startClient() {
-  client.on('ready', function () {})
-  await client.login(DISCORD_TOKEN)
-})()
+  ; (async function startClient() {
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
+    client.on('ready', function () { })
+    await client.login(DISCORD_TOKEN)
+  })()
 
 export async function sendEmbedMessage(
   title: string,
   fields: EmbedFieldData[]
-) {
+): Promise<Message> {
   try {
     const channel = client.channels.cache.get(CHANNEL_ID)
     const messageEmbed = new MessageEmbed()
@@ -40,7 +42,7 @@ export async function sendEmbedMessage(
   }
 }
 
-export async function sendMessage(content: string | object) {
+export async function sendMessage(content: string | object): Promise<Message> {
   try {
     const channel = client.channels.cache.get(CHANNEL_ID)
     return await (channel as TextChannel).send(content)
