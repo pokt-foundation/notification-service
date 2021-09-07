@@ -34,10 +34,13 @@
   "dependencies": {
     "@influxdata/influxdb-client": "^1.17.0",
     "@pokt-network/pocket-js": "^0.6.13-rc",
+    "axios": "^0.21.1",
     "dayjs": "^1.10.6",
+    "discord.js": "12.5.3",
     "ioredis": "^4.27.8",
     "lodash.get": "^4.4.2",
     "mailgun-js": "^0.22.0",
-    "mongoose": "^6.0.1"
+    "mongoose": "^6.0.1",
+    "table": "^6.7.1"
   }
 }

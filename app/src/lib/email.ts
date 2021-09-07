@@ -15,8 +15,9 @@ const WHITELISTED_TEMPLATES = new Map([
 ])
 
 export interface INotificationTemplate {
-  app_name: string
+  actual_usage: string
   app_id: string
+  app_name: string
   usage: string
 }
 

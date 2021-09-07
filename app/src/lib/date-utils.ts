@@ -1,6 +1,8 @@
 import dayjs from 'dayjs'
 import dayJsutcPlugin from 'dayjs/plugin/utc'
 
+const ISO_FORMAT = 'DD/MM/YYYY'
+
 export function getUTCTimestamp(): string {
   const timestamp = new Date()
 
@@ -35,4 +37,21 @@ export function getTodayUtcDate(): string {
   }T00:00:00+00:00`
 
   return todayBucket
+}
+
+export function getHourFromUtcDate(date: string): string {
+  dayjs.extend(dayJsutcPlugin)
+
+  const time = dayjs(date)
+
+  return time.format('HH:mm')
+}
+
+// Returns today's date in the format of `DD/MM/YYYY`
+export function getTodayISODate(): string {
+  dayjs.extend(dayJsutcPlugin)
+
+  const time = dayjs()
+
+  return time.format(ISO_FORMAT)
 }

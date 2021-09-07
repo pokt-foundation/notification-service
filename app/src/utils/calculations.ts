@@ -5,19 +5,50 @@ import { IApplication } from '../models/Application';
 import { ILoadBalancer } from '../models/LoadBalancer';
 import { convertToMap } from './helpers';
 import log from '../lib/logger';
+import User, { IUser } from '../models/User';
+import { Types } from 'mongoose';
+
+const THRESHOLD_LIMIT = parseInt(process.env.THRESHOLD_LIMIT || '100')
 
 const calculateRelaysPercentage = (relays: number, maxRelays: number) => parseFloat(((relays / maxRelays) * 100).toFixed(2))
 
-export function getApplicationsUsage(networkData: Map<string, Application>, influxData: GetUsageDataQuery[]): ApplicationData[] {
+const getUserEmail = async (id: string | undefined): Promise<string> => {
+  if (id === undefined) {
+    return ''
+  }
+  try {
+    // old apps have the user field as email instead of ObjectID
+    const isEmailID = id.indexOf('@') > -1
+    let email = ''
+    if (isEmailID) {
+      email = id
+    } else {
+      const user = await User.findById(id)
+      if (user) {
+        email = user.email
+      }
+    }
+
+    return email
+  } catch (e) {
+    if (id as any instanceof Types.ObjectId) {
+    }
+    log('error', `failure trying to fetch email for app/lb on value: ${id}`, (e as Error).message)
+    return ''
+  }
+}
+
+export async function getApplicationsUsage(networkData: Map<string, Application>, influxData: GetUsageDataQuery[], dbApps: Map<string, IApplication>): Promise<ApplicationData[]> {
   const applicationsData: ApplicationData[] = []
 
   const queryData = convertToMap(influxData, 'applicationPublicKey')
 
-  influxData.forEach(entry => {
+  let i = 0
+  influxData.forEach(async entry => {
     const networkApp = networkData.get(entry.applicationPublicKey)
 
     if (networkApp === undefined) {
-      // TODO: Proper log
+      log('info', `${entry.applicationPublicKey} does not have an associated LB`)
       return
     }
 
@@ -25,30 +56,41 @@ export function getApplicationsUsage(networkData: Map<string, Application>, infl
 
     const appQuery = queryData.get(publicKey)
     if (appQuery === undefined) {
+      log('error', `${address} not found in the db`)
       return
     }
 
     const { relays: relaysUsed } = appQuery
 
+    const dbApp = dbApps.get(address) || <IApplication>{}
+
+    const user = dbApp.user || ''
+    const email = await getUserEmail(user.toString())
     const applicationData: ApplicationData = {
       publicKey,
       address,
       chains,
-      stakedTokens: Number(stakedTokens),
       jailed,
       status,
-      maxRelays: Number(maxRelays),
       relaysUsed,
+      email,
+      name: dbApp.name,
+      stakedTokens: Number(stakedTokens),
+      maxRelays: Number(maxRelays),
       percentageUsed: calculateRelaysPercentage(relaysUsed, Number(maxRelays))
     }
 
     if (applicationData.percentageUsed > 100) {
-      const { address: applicationAddress, relaysUsed, maxRelays, percentageUsed } = applicationData
-      log('warn', 'Application over 100% threshold', undefined, {
+
+      const { publicKey: applicationPublicKey, address: applicationAddress, relaysUsed, maxRelays, percentageUsed, email, name: applicationName } = applicationData
+      log('warn', `Application over ${THRESHOLD_LIMIT}% threshold`, undefined, {
         applicationAddress,
+        applicationPublicKey,
         relaysUsed,
         maxRelays,
-        percentageUsed
+        percentageUsed,
+        applicationName,
+        email,
       })
     }
 
@@ -58,8 +100,8 @@ export function getApplicationsUsage(networkData: Map<string, Application>, infl
   return applicationsData
 }
 
-export async function getLoadBalancersUsage(appData: ApplicationData[], dbApps: Map<string, IApplication>, loadBalancers: Map<string, ILoadBalancer>, networkApps: Map<string, Application>): Promise<ExtendedLoadBalancer> {
-  const extendedLBData: ExtendedLoadBalancer = {}
+export async function getLoadBalancersUsage(appData: ApplicationData[], dbApps: Map<string, IApplication>, loadBalancers: Map<string, ILoadBalancer>, networkApps: Map<string, Application>): Promise<Map<string, ExtendedLoadBalancerData>> {
+  let extendedLBData: Map<string, ExtendedLoadBalancerData> = new Map<string, ExtendedLoadBalancerData>()
 
   const lbsOfApps = new Map<string, string>()
   for (const loadBalancer of loadBalancers) {
@@ -86,56 +128,67 @@ export async function getLoadBalancersUsage(appData: ApplicationData[], dbApps: 
     return maxUnusedRelays
   }
 
-  appData.forEach(async app => {
+  for (const app of appData) {
     const dbApp = dbApps.get(app.address)
 
     if (dbApp === undefined) {
-      return
+      continue
     }
 
     const lbId = lbsOfApps.get(dbApp?._id.toString())
 
     // TODO: Define behavior for apps that don't belong to any load balancer
     if (lbId === undefined) {
-      return
+      continue
     }
 
     const lb = loadBalancers.get(lbId)!
 
     const { _id: lbID, user: userID, name, applicationIDs } = lb
 
-    if (lbID in extendedLBData) {
-      const extendedLB = extendedLBData[lbID]
+    if (extendedLBData.has(lbID)) {
+      const extendedLB = extendedLBData.get(lbID) as ExtendedLoadBalancerData
+
       extendedLB.maxRelays += app.maxRelays
       extendedLB.relaysUsed += app.relaysUsed
       extendedLB.activeApplications.push({ ...app, id: dbApp._id })
-    } else {
-      /// @ts-ignore
-      extendedLBData[lbID] = { userID, name, applicationIDs, id: lbID }
 
-      const extendedLB = extendedLBData[lbID]
+      extendedLBData.set(lbID, extendedLB)
+    } else {
+      const email = await getUserEmail(userID.toString())
+
+      /// @ts-ignore
+      extendedLBData.set(lbID, { userID, name, email, applicationIDs, id: lbID })
+
+      const extendedLB = extendedLBData.get(lbID) as ExtendedLoadBalancerData
       extendedLB.maxRelays = app.maxRelays
       extendedLB.relaysUsed = app.relaysUsed
+      extendedLB.notificationSettings = dbApp.notificationSettings
 
       // @ts-ignore
       extendedLB.activeApplications = [{ ...app, id: dbApp._id.toString() }]
-    }
-  })
 
-  for (const id in extendedLBData) {
-    const lb = extendedLBData[id]
+      extendedLBData.set(lbID, extendedLB)
+    }
+  }
+
+  for (const [id, _] of extendedLBData.entries()) {
+    const lb = extendedLBData.get(id) as ExtendedLoadBalancerData
     lb.maxRelays += getInactiveAppRelays(lb)
     const { relaysUsed, maxRelays, name, activeApplications } = lb
     lb.percentageUsed = calculateRelaysPercentage(relaysUsed, maxRelays)
 
+    extendedLBData.set(id, lb)
+
     if (lb.percentageUsed > 100) {
-      log('warn', 'Load Balancer over 100% threshold', undefined, {
+      log('warn', `Load Balancer over ${THRESHOLD_LIMIT}% threshold`, undefined, {
         loadBalancerId: id,
         loadBalancerName: name,
         loadBalancerApps: activeApplications.map(app => app.address),
         maxRelays: lb.maxRelays,
         relaysUsed: relaysUsed,
-        percentageUsed: lb.percentageUsed
+        percentageUsed: lb.percentageUsed,
+        email: lb.email,
       })
     }
   }

@@ -38,7 +38,22 @@ Parameters:
   EmailApiKey:
     Type: String
     NoEcho: true
-
+  DataDogApiKey:
+    Type: String
+    NoEcho: true
+  DataDogAppKey:
+    Type: String
+    NoEcho: true
+  DataDogSite:
+    Type: String
+    NoEcho: true
+  DiscordToken:
+    Type: String
+    NoEcho: true
+  ChannelId:
+    Type: String
+    NoEcho: true
+  
 Globals:
   Function:
     Timeout: 60
@@ -53,8 +68,8 @@ Resources:
       Description: Notifies of endpoints which overrun the allowed stake
       CodeUri: app/
       Handler: dist/functions/notify-endpoint-usage/app.handler
-      Runtime: nodejs12.x
-      MemorySize: 400
+      Runtime: nodejs14.x
+      MemorySize: 500
       Environment:
         Variables:
           EMAIL_API_KEY: !Ref EmailApiKey
@@ -70,8 +85,29 @@ Resources:
         SecurityGroupIds: 
          - !Ref SecurityGroupID
         SubnetIds: !Ref SubnetIDs
+  SendDiscordNotification:
+    Type: AWS::Serverless::Function 
+    Metadata:
+      BuildMethod: makefile
+    Properties:
+      FunctionName: send-discord-notification
+      Description: Sends notification to discord on apps/lbs that overran their stake
+      CodeUri: app/
+      Handler: dist/functions/send-discord-notification/app.handler
+      Runtime: nodejs14.x
+      MemorySize: 500
+      Environment:
+        Variables:
+          DD_SITE: !Ref DataDogSite
+          DD_API_KEY: !Ref DataDogApiKey
+          DD_APP_KEY: !Ref DataDogAppKey
+          DISCORD_TOKEN: !Ref DiscordToken
+          CHANNEL_ID: !Ref ChannelId
 
 Outputs:
   NotifyEndpointUsage:
     Description: "Notify Endpoint Usage Lambda Function ARN"
     Value: !GetAtt NotifyEndpointUsage.Arn
+  SendDiscordNotification:
+    Description: "Send Discord Notification Lambda Function ARN"
+    Value: !GetAtt SendDiscordNotification.Arn
