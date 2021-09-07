@@ -13,6 +13,7 @@ export type Log = {
   applicationAddress?: string,
   applicationPublicKey?: string,
   applicationName?: string,
+  chains?: string[],
   maxRelays?: number
   relaysUsed?: number
   percentageUsed?: number
@@ -30,6 +31,7 @@ export default function log(level: logLevel, message?: string, error?: string, r
   relaysUsed?: number,
   percentageUsed?: number,
   email?: string,
+  chains?: string[]
 }, additionalInfo?: object) {
   const log: Log = {
     timestamp: new Date().toISOString(),

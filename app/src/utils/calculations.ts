@@ -21,7 +21,7 @@ async function logEntityThreshold(entity: ApplicationData | ExtendedLoadBalancer
   const remainingSecondsOnHour = getSecondsForNextHour()
 
   if (isApplicationData(entity)) {
-    const { address, publicKey, relaysUsed, maxRelays, percentageUsed, email, name } = entity
+    const { address, publicKey, relaysUsed, maxRelays, percentageUsed, email, name, chains } = entity
     const cached = await redis.get(`nt-app-${address}`)
 
     if (!cached || remainingSecondsOnHour <= SECONDS_TO_RELOG) {
@@ -33,6 +33,7 @@ async function logEntityThreshold(entity: ApplicationData | ExtendedLoadBalancer
         maxRelays,
         percentageUsed,
         email,
+        chains
       })
 
       if (!cached) {
@@ -40,7 +41,7 @@ async function logEntityThreshold(entity: ApplicationData | ExtendedLoadBalancer
       }
     }
   } else {
-    const { id, name, activeApplications, relaysUsed, maxRelays, email, percentageUsed } = entity
+    const { id, name, chains, activeApplications, relaysUsed, maxRelays, email, percentageUsed } = entity
     const cached = await redis.get(`nt-lb-${id}`)
 
     if (!cached || remainingSecondsOnHour <= SECONDS_TO_RELOG) {
@@ -52,6 +53,7 @@ async function logEntityThreshold(entity: ApplicationData | ExtendedLoadBalancer
         maxRelays,
         percentageUsed,
         email,
+        chains
       })
 
       if (!cached) {
@@ -64,7 +66,7 @@ async function logEntityThreshold(entity: ApplicationData | ExtendedLoadBalancer
 const calculateRelaysPercentage = (relays: number, maxRelays: number) => parseFloat(((relays / maxRelays) * 100).toFixed(2))
 
 const getUserEmail = async (id: string | undefined): Promise<string> => {
-  if (id === undefined || id.length <= 1) {
+  if (id= undefined || id.length <= 1) {
     return ''
   }
   try {
@@ -198,8 +200,9 @@ export async function getLoadBalancersUsage(appData: ApplicationData[], dbApps: 
     } else {
       const email = await getUserEmail(userID.toString())
 
+      // TODO: Change chain to chains when the Application schema is updated
       /// @ts-ignore
-      extendedLBData.set(lbID, { userID, name, email, applicationIDs, id: lbID })
+      extendedLBData.set(lbID, { chains: [dbApp.chain], userID, name, email, applicationIDs, id: lbID })
 
       const extendedLB = extendedLBData.get(lbID) as ExtendedLoadBalancerData
       extendedLB.maxRelays = app.maxRelays
