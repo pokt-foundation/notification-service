@@ -106,8 +106,6 @@ exports.handler = async () => {
   const date = getTodayISODate()
   await sendMessage(`Exceeded Application/Load Balancer Relays of [${date}]`)
 
-  console.log(JSON.stringify(Object.fromEntries(appsMessages)))
-  console.log(JSON.stringify(Object.fromEntries(lbsMessages)))
   const messagesToSend = []
   for (const [name, app] of appsMessages) {
     messagesToSend.push(sendEmbedMessage(`App: ${name}`, app))
