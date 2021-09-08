@@ -100,6 +100,7 @@ Resources:
     Metadata:
       BuildMethod: makefile
     Properties:
+      Timeout: 180
       FunctionName: send-discord-notification
       Description: Sends notification to discord on apps/lbs that overran their stake
       CodeUri: app/
