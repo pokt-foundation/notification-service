@@ -7,7 +7,7 @@ import {
 } from '../../models/datadog'
 import { getHourFromUtcDate, getTodayISODate } from '../../lib/date-utils'
 import { formatNumber } from '../../utils/helpers'
-import { sendEmbedMessage, sendMessage } from '../../lib/discord'
+import { sendEmbedMessage, sendMessage, splitEmbeds } from '../../lib/discord'
 import { EmbedFieldData } from 'discord.js'
 
 type availableLogs = LoadBalancerLog | ApplicationLog
@@ -150,10 +150,16 @@ exports.handler = async () => {
 
   const messagesToSend = []
   for (const [name, app] of appsMessages) {
-    messagesToSend.push(sendEmbedMessage(`App: ${name}`, app))
+    const embeds = splitEmbeds(app)
+    for (const embed of embeds) {
+      messagesToSend.push(sendEmbedMessage(`App: ${name}`, embed))
+    }
   }
   for (const [name, lb] of lbsMessages) {
-    messagesToSend.push(sendEmbedMessage(`LB: ${name}`, lb))
+    const embeds = splitEmbeds(lb)
+    for (const embed of embeds) {
+      messagesToSend.push(sendEmbedMessage(`LB: ${name}`, embed))
+    }
   }
 
   await Promise.allSettled(messagesToSend)
