@@ -44,6 +44,9 @@ export type LambdaLog = {
   timestamp: (string | number)[]
   message: string
   hourstamp: string
+}
+
+export type EntityLog = LambdaLog & {
   relaysUsed: number
   maxRelays: number
   percentageUsed: number
@@ -51,16 +54,21 @@ export type LambdaLog = {
   chains: string[]
 }
 
-export type LoadBalancerLog = LambdaLog & {
+export type LoadBalancerLog = EntityLog & {
   loadBalancerName: string
   loadBalancerApps: string[]
   loadBalancerId: string
 }
 
-export type ApplicationLog = LambdaLog & {
+export type ApplicationLog = EntityLog & {
   applicationAddress: string
   applicationPublicKey: string
   applicationName: string
+}
+
+export type MaxUsage = EntityLog & {
+  maxApps: number
+  maxLbs: number
 }
 
 export function isLoadBalancerLog(

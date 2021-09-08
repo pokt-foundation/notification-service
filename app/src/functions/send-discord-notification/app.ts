@@ -4,6 +4,7 @@ import {
   isApplicationLog,
   LambdaLog,
   LoadBalancerLog,
+  MaxUsage,
 } from '../../models/datadog'
 import { getHourFromUtcDate, getTodayISODate } from '../../lib/date-utils'
 import { formatNumber } from '../../utils/helpers'
@@ -131,6 +132,39 @@ function buildEmbedMessages(
   return messages
 }
 
+
+async function getMaxUsageMsg(): Promise<EmbedFieldData[]> {
+  let dailyMaximum = {
+    hour: '',
+    apps: 0,
+    lbs: 0
+  }
+
+  const dailyMaxUsage = (
+    await getQueryResults<MaxUsage>('successfully calculated usage')
+  )
+
+  for (const currHour of dailyMaxUsage) {
+    const { hourstamp: hour, maxApps, maxLbs } = currHour
+    const { apps, lbs } = dailyMaximum
+    if (maxApps > apps && maxLbs > lbs) {
+      const newMaximun = {
+        hour: getHourFromUtcDate(hour),
+        apps: maxApps,
+        lbs: maxLbs,
+      }
+      dailyMaximum = newMaximun
+    }
+  }
+
+  const { hour, apps, lbs } = dailyMaximum
+
+  return [
+    { name: 'Hour', value: hour, inline: true },
+    { name: 'Apps', value: formatNumber(apps), inline: true },
+    { name: 'Lbs', value: formatNumber(lbs), inline: true },]
+}
+
 exports.handler = async () => {
   const lbs = (
     await getQueryResults<LoadBalancerLog>('Load Balancer over 100 %')
@@ -163,6 +197,9 @@ exports.handler = async () => {
   }
 
   await Promise.allSettled(messagesToSend)
+
+  const maxUsage = await getMaxUsageMsg()
+  await sendEmbedMessage('Time of day with maximun number of apps/lbs', maxUsage)
 
   return { message: 'ok' }
 }
