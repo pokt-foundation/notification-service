@@ -56,21 +56,22 @@ function buildEmbedMessages(
   for (const [_, logs] of data) {
     const message: EmbedFieldData[] = []
 
+    // Possibly empty variables have  a default dash as values 
+    // cannot be an empty string
     if (isApplicationLog(logs[0])) {
       const {
-        applicationName: name,
+        applicationName: name = '-',
         applicationPublicKey: publicKey,
         applicationAddress: adddress,
-        email,
+        email = '-',
       } = logs[0]
+      const { chains = ['-'] } = logs[logs.length - 1]
 
-      // TODO: Remove after 7/9/2021 as all logs will have chains attached
-      const chains = logs[logs.length - 1].chains || ['-']
       message.push(
         { name: 'Public Key', value: publicKey, inline: false },
         { name: 'Chains', value: chains.join(', '), inline: false },
         { name: 'Address', value: adddress, inline: true },
-        { name: 'Email', value: email, inline: true }
+        { name: 'Email', value: email !== '' ? email : '-', inline: true }
       )
       for (const log of logs) {
         const { relaysUsed, maxRelays, percentageUsed, hourstamp } = log
