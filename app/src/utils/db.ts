@@ -1,10 +1,15 @@
-import { Model } from 'mongoose';
-import log from '../lib/logger';
+import { Model } from 'mongoose'
+import log from '../lib/logger'
 
-const CACHE_TTL = parseInt(process.env.NETWORK_CACHE_TTL ?? '') || 3600;
+const CACHE_TTL = parseInt(process.env.NETWORK_CACHE_TTL ?? '') || 3600
 
-export async function getModelFromDBOrCache<T>(redis: any, model: Model<T, {}, {}>, cacheKey: string): Promise<T[]> {
-  let result: T[] = [];
+export async function getModelFromDBOrCache<T>(
+  // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+  redis: any,
+  model: Model<T, {}, {}>,
+  cacheKey: string
+): Promise<T[]> {
+  let result: T[] = []
 
   try {
     const cached = await redis.get(cacheKey)

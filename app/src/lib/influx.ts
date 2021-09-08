@@ -1,9 +1,10 @@
-import { InfluxDB, RequestTimedOutError } from '@influxdata/influxdb-client'
-import { GetUsageDataQuery } from '../models/types';
-import { getHoursFromNowUtcDate, getUTCTimestamp } from './date-utils';
-import log from './logger';
+import { InfluxDB } from '@influxdata/influxdb-client'
+import { GetUsageDataQuery } from '../models/types'
+import { getHoursFromNowUtcDate, getUTCTimestamp } from './date-utils'
+import log from './logger'
 
-const QUERY_START_TIME = parseInt(process.env.INFLUX_QUERY_START_TIME ?? '') || 1;
+const QUERY_START_TIME =
+  parseInt(process.env.INFLUX_QUERY_START_TIME ?? '') || 1
 
 const DEFAULT_INFLUX_TIMEOUT = 20000
 
@@ -17,9 +18,9 @@ export function buildAppUsageQuery({
   start,
   stop,
 }: {
-  start: string,
-  stop: string,
-}) {
+  start: string
+  stop: string
+}): string {
   return `
 total = from(bucket: "mainnetRelay10m")
 |> range(start: ${start}, stop: ${stop})
@@ -45,9 +46,13 @@ export async function getUsageData(): Promise<GetUsageDataQuery[]> {
         start: getHoursFromNowUtcDate(QUERY_START_TIME),
         stop: getUTCTimestamp(),
       })
-    )) as unknown as any[];
+    )) as unknown as any[]
   } catch (err) {
-    log('error', 'failed retrieving relays data from influx', (err as Error).message)
+    log(
+      'error',
+      'failed retrieving relays data from influx',
+      (err as Error).message
+    )
     throw err
   }
 
@@ -56,7 +61,7 @@ export async function getUsageData(): Promise<GetUsageDataQuery[]> {
     applicationPublicKey: data.applicationPublicKey,
     result: data.result,
     table: data.table,
-  }));
+  }))
 
-  return appData as GetUsageDataQuery[];
+  return appData as GetUsageDataQuery[]
 }

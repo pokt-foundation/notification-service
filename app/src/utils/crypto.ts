@@ -1,12 +1,12 @@
 import crypto from 'crypto'
 
 function hexStringToByte(str: string) {
-  let bytes = [];
+  const bytes = []
   for (let i = 0; i < str.length; i += 2) {
-    bytes.push(parseInt(str.substr(i, 2), 16));
+    bytes.push(parseInt(str.substr(i, 2), 16))
   }
 
-  return new Uint8Array(bytes);
+  return new Uint8Array(bytes)
 }
 
 /**
@@ -15,5 +15,9 @@ function hexStringToByte(str: string) {
  * @returns Application's address
  */
 export function getAddressFromPublicKey(publicKey: string): string {
-  return crypto.createHash('sha256').update(hexStringToByte(publicKey)).digest('hex').slice(0, 40)
+  return crypto
+    .createHash('sha256')
+    .update(hexStringToByte(publicKey))
+    .digest('hex')
+    .slice(0, 40)
 }
