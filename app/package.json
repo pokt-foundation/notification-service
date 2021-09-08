@@ -41,7 +41,7 @@
   "dependencies": {
     "@influxdata/influxdb-client": "^1.17.0",
     "@pokt-network/pocket-js": "^0.6.13-rc",
-    "axios": "^0.21.1",
+    "axios": "^0.21.2",
     "dayjs": "^1.10.6",
     "discord.js": "12.5.3",
     "ioredis": "^4.27.8",
