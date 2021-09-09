@@ -11,6 +11,7 @@ import {
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN || ''
 const CHANNEL_ID = process.env.CHANNEL_ID || ''
 const EMBED_COLOR = '#136682'
+const EMBED_FIELDS_LIMIT = 25
 
 const client = new Client()
 
@@ -19,6 +20,33 @@ const client = new Client()
     client.on('ready', function () { })
     await client.login(DISCORD_TOKEN)
   })()
+
+
+/**
+ * Split embed fields to be lower than the allowed limit by discord
+ * @param fields number of fields in the embedded message
+ * @returns array of array of fields, each with a maximun length of the embed limit
+ */
+export function splitEmbeds(fields: EmbedFieldData[]): EmbedFieldData[][] {
+  if (fields.length <= EMBED_FIELDS_LIMIT) {
+    return [fields]
+  }
+  const result: EmbedFieldData[][] = []
+  const iterations = Math.ceil(fields.length / EMBED_FIELDS_LIMIT)
+
+  for (let i = 0; i < iterations; i++) {
+    const start = i * EMBED_FIELDS_LIMIT;
+
+    const maxEnd = start + EMBED_FIELDS_LIMIT
+    const end = maxEnd <= fields.length ? maxEnd : fields.length
+
+    const segment = fields.slice(start, end)
+
+    result.push(segment)
+  }
+
+  return result
+}
 
 export async function sendEmbedMessage(
   title: string,

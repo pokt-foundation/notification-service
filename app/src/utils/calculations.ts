@@ -84,7 +84,7 @@ async function logEntityThreshold(
         {
           loadBalancerId: id,
           loadBalancerName: name,
-          loadBalancerApps: activeApplications.map((app) => app.address),
+          loadBalancerApps: activeApplications.map((app) => app.publicKey),
           relaysUsed,
           maxRelays,
           percentageUsed,
@@ -243,14 +243,14 @@ export async function getLoadBalancersUsage(
   }
 
   for (const app of appData) {
-    const dbApp = dbApps.get(app.address)
+    const { address, maxRelays, relaysUsed, chains } = app
 
+    const dbApp = dbApps.get(address)
     if (dbApp === undefined) {
       continue
     }
 
     const lbId = lbsOfApps.get(dbApp?._id.toString())
-
     // TODO: Define behavior for apps that don't belong to any load balancer
     if (lbId === undefined) {
       continue
@@ -264,8 +264,8 @@ export async function getLoadBalancersUsage(
     if (extendedLBData.has(lbID)) {
       const extendedLB = extendedLBData.get(lbID) as ExtendedLoadBalancerData
 
-      extendedLB.maxRelays += app.maxRelays
-      extendedLB.relaysUsed += app.relaysUsed
+      extendedLB.maxRelays += maxRelays
+      extendedLB.relaysUsed += relaysUsed
       extendedLB.activeApplications.push({ ...app, id: dbApp._id })
 
       extendedLBData.set(lbID, extendedLB)
@@ -275,7 +275,7 @@ export async function getLoadBalancersUsage(
       // TODO: Change chain to chains when the Application schema is updated
       /// @ts-ignore
       extendedLBData.set(lbID, {
-        chains: [dbApp.chain],
+        chains: chains,
         userID,
         name,
         email,
