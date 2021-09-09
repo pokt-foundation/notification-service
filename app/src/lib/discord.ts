@@ -28,7 +28,7 @@ const client = new Client()
  * @returns array of array of fields, each with a maximun length of the embed limit
  */
 export function splitEmbeds(fields: EmbedFieldData[]): EmbedFieldData[][] {
-  if (fields.length <= 25) {
+  if (fields.length <= EMBED_FIELDS_LIMIT) {
     return [fields]
   }
   const result: EmbedFieldData[][] = []

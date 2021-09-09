@@ -148,12 +148,12 @@ async function getMaxUsageMsg(): Promise<EmbedFieldData[]> {
     const { hourstamp: hour, maxApps, maxLbs } = currHour
     const { apps, lbs } = dailyMaximum
     if (maxApps > apps && maxLbs > lbs) {
-      const newMaximun = {
+      const newMaximum = {
         hour: getHourFromUtcDate(hour),
         apps: maxApps,
         lbs: maxLbs,
       }
-      dailyMaximum = newMaximun
+      dailyMaximum = newMaximum
     }
   }
 
@@ -199,7 +199,7 @@ exports.handler = async () => {
   await Promise.allSettled(messagesToSend)
 
   const maxUsage = await getMaxUsageMsg()
-  await sendEmbedMessage('Time of day with maximun number of apps/lbs', maxUsage)
+  await sendEmbedMessage('Time of day with maximum number of apps/lbs', maxUsage)
 
   return { message: 'ok' }
 }
