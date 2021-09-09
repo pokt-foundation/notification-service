@@ -18,9 +18,9 @@ import { getSecondsForNextHour } from '../lib/date-utils'
 // times as we're only interested on the maximum value per hour
 const SECONDS_TO_RELOG = 360 // 6 min
 
-// When caching an app/lb, a small exceedent is needed so the db have time to 
+// When caching an app/lb, a small exceedent is needed so the db have time to
 // reindex the values of the next hour
-const EXCEEDED_TIME = 120 // 2 min 
+const EXCEEDED_TIME = 120 // 2 min
 
 const THRESHOLD_LIMIT = parseInt(process.env.THRESHOLD_LIMIT || '100')
 
@@ -98,7 +98,8 @@ async function logEntityThreshold(
           `nt-lb-${id}`,
           'true',
           'EX',
-          remainingSecondsOnHour + EXCEEDED_TIME)
+          remainingSecondsOnHour + EXCEEDED_TIME
+        )
       }
     }
   }

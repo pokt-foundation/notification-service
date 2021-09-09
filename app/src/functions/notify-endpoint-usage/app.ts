@@ -56,16 +56,15 @@ exports.handler = async () => {
   )
 
   const loadBalancers: Map<string, ILoadBalancer> = convertToMap(
-    await
-      retryEvery(
-        // @ts-ignore
-        getModelFromDBOrCache.bind(
-          null,
-          redis,
-          LoadBalancerModel,
-          'nt-loadBalancers'
-        )
-      ),
+    await retryEvery(
+      // @ts-ignore
+      getModelFromDBOrCache.bind(
+        null,
+        redis,
+        LoadBalancerModel,
+        'nt-loadBalancers'
+      )
+    ),
     '_id'
   )
 

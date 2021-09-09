@@ -15,12 +15,11 @@ const EMBED_FIELDS_LIMIT = 25
 
 const client = new Client()
 
-  ; (async function startClient() {
-    // eslint-disable-next-line @typescript-eslint/no-empty-function
-    client.on('ready', function () { })
-    await client.login(DISCORD_TOKEN)
-  })()
-
+;(async function startClient() {
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  client.on('ready', function () {})
+  await client.login(DISCORD_TOKEN)
+})()
 
 /**
  * Split embed fields to be lower than the allowed limit by discord
@@ -35,7 +34,7 @@ export function splitEmbeds(fields: EmbedFieldData[]): EmbedFieldData[][] {
   const iterations = Math.ceil(fields.length / EMBED_FIELDS_LIMIT)
 
   for (let i = 0; i < iterations; i++) {
-    const start = i * EMBED_FIELDS_LIMIT;
+    const start = i * EMBED_FIELDS_LIMIT
 
     const maxEnd = start + EMBED_FIELDS_LIMIT
     const end = maxEnd <= fields.length ? maxEnd : fields.length
