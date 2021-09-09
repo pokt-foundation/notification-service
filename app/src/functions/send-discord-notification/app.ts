@@ -57,7 +57,7 @@ function buildEmbedMessages(
   for (const [_, logs] of data) {
     const message: EmbedFieldData[] = []
 
-    // Possibly empty variables have  a default dash as values 
+    // Possibly empty variables have  a default dash as values
     // cannot be an empty string
     if (isApplicationLog(logs[0])) {
       const {
@@ -132,16 +132,15 @@ function buildEmbedMessages(
   return messages
 }
 
-
 async function getMaxUsageMsg(): Promise<EmbedFieldData[]> {
   let dailyMaximum = {
     hour: '',
     apps: 0,
-    lbs: 0
+    lbs: 0,
   }
 
-  const dailyMaxUsage = (
-    await getQueryResults<MaxUsage>('successfully calculated usage')
+  const dailyMaxUsage = await getQueryResults<MaxUsage>(
+    'successfully calculated usage'
   )
 
   for (const currHour of dailyMaxUsage) {
@@ -162,7 +161,8 @@ async function getMaxUsageMsg(): Promise<EmbedFieldData[]> {
   return [
     { name: 'Hour', value: hour, inline: true },
     { name: 'Apps', value: formatNumber(apps), inline: true },
-    { name: 'Lbs', value: formatNumber(lbs), inline: true },]
+    { name: 'Lbs', value: formatNumber(lbs), inline: true },
+  ]
 }
 
 exports.handler = async () => {
@@ -199,7 +199,10 @@ exports.handler = async () => {
   await Promise.allSettled(messagesToSend)
 
   const maxUsage = await getMaxUsageMsg()
-  await sendEmbedMessage('Time of day with maximum number of apps/lbs', maxUsage)
+  await sendEmbedMessage(
+    'Time of day with maximum number of apps/lbs',
+    maxUsage
+  )
 
   return { message: 'ok' }
 }

@@ -1,6 +1,6 @@
 import { StakingStatus } from '@pokt-network/pocket-js'
 import { INotificationSettings } from './Application'
-import { Types } from 'mongoose';
+import { Types } from 'mongoose'
 
 export type GetUsageDataQuery = {
   relays: number
