@@ -9,6 +9,7 @@ import {
   typeGuard,
 } from '@pokt-network/pocket-js'
 import { getAddressFromPublicKey } from '../utils/crypto'
+import axios, { AxiosError } from 'axios'
 import log from './logger'
 
 const blockTime = process.env.BLOCK_TIME
@@ -71,45 +72,84 @@ export async function getApplicationNetworkData(
   return rpcResponse
 }
 
+// Pocket Rpc Call code commented as is not working at the moment, a direct
+// rpc call will be used temporarily
 export async function getAppsInNetwork(): Promise<
   Omit<Application, 'toJSON' | 'isValid'>[]
 > {
-  let page = 1
+  const page = 1
   const applicationsList: Omit<Application, 'toJSON' | 'isValid'>[] = []
-  const perPage = 100
-  const rpcProvider = getRPCProvider()
-  const pocketInstance = new Pocket(
-    getPocketDispatchers(),
-    undefined,
-    POCKET_CONFIGURATION
-  )
+  const perPage = 3000
+  // const rpcProvider = getRPCProvider()
+  // const pocketInstance = new Pocket(
+  //   getPocketDispatchers(),
+  //   undefined,
+  //   POCKET_CONFIGURATION
+  // )
 
-  const rpcResponse = await pocketInstance
-    .rpc(rpcProvider)
-    ?.query.getApps(undefined, BigInt(0), undefined, page, perPage)
+  // const rpcResponse = await pocketInstance
+  //   .rpc(rpcProvider)
+  //   ?.query.getApps(undefined, BigInt(0), undefined, page, perPage)
 
-  if (typeGuard(rpcResponse, RpcError)) {
-    log(
-      'error',
-      'failed retrieving applications from network',
-      rpcResponse.message
-    )
-    throw new Error(rpcResponse.message)
-  }
+  // if (typeGuard(rpcResponse, RpcError)) {
+  //   log(
+  //     'error',
+  //     'failed retrieving applications from network',
+  //     rpcResponse.message
+  //   )
+  //   throw new Error(rpcResponse.message)
+  // }
 
-  const totalPages = rpcResponse?.totalPages || 1
+  // const totalPages = rpcResponse?.totalPages || 1
 
-  while (page <= totalPages) {
-    const response = await pocketInstance
-      .rpc(rpcProvider)
-      ?.query.getApps(undefined, BigInt(0), undefined, page, perPage)
+  // const totalPages = 1
 
-    page++
-    if (response instanceof RpcError) {
-      page = totalPages
-      break
-    }
-    response?.applications.forEach((app) => {
+  // while (page <= totalPages) {
+  //   const response = await pocketInstance
+  //     .rpc(rpcProvider)
+  //     ?.query.getApps(undefined, BigInt(0), undefined, page, perPage)
+
+  //   page++
+  //   if (response instanceof RpcError) {
+  //     page = totalPages
+  //     break
+  //   }
+  //   response?.applications.forEach((app) => {
+  //     const {
+  //       address,
+  //       chains,
+  //       public_key: publicKey,
+  //       jailed,
+  //       max_relays: maxRelays,
+  //       status,
+  //       staked_tokens: stakedTokens,
+  //       unstaking_time: unstakingCompletionTime,
+  //     } = app.toJSON()
+
+  //     applicationsList.push({
+  //       address,
+  //       chains,
+  //       publicKey,
+  //       jailed,
+  //       maxRelays: BigInt(maxRelays),
+  //       status,
+  //       stakedTokens: BigInt(stakedTokens),
+  //       unstakingCompletionTime,
+  //     })
+  //   })
+  // }
+
+  try {
+    const {
+      data: { result: apps },
+    } = await axios.post(`${DEFAULT_DISPATCHER_LIST.toString()}v1/query/apps`, {
+      opts: {
+        page,
+        per_page: perPage,
+      },
+    })
+
+    for (const app of apps) {
       const {
         address,
         chains,
@@ -119,19 +159,26 @@ export async function getAppsInNetwork(): Promise<
         status,
         staked_tokens: stakedTokens,
         unstaking_time: unstakingCompletionTime,
-      } = app.toJSON()
-
-      applicationsList.push({
+      } = app
+      const networkApp: Omit<Application, 'toJSON' | 'isValid'> = {
         address,
         chains,
         publicKey,
         jailed,
-        maxRelays: BigInt(maxRelays),
+        maxRelays,
         status,
-        stakedTokens: BigInt(stakedTokens),
+        stakedTokens,
         unstakingCompletionTime,
-      })
-    })
+      }
+      applicationsList.push(networkApp)
+    }
+  } catch (err) {
+    log(
+      'error',
+      'failed retrieving applications from network',
+      (err as AxiosError).message
+    )
+    throw err
   }
 
   return applicationsList
