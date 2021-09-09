@@ -18,6 +18,10 @@ import { getSecondsForNextHour } from '../lib/date-utils'
 // times as we're only interested on the maximum value per hour
 const SECONDS_TO_RELOG = 360 // 6 min
 
+// When caching an app/lb, a small exceedent is needed so the db have time to 
+// reindex the values of the next hour
+const EXCEEDED_TIME = 120 // 2 min 
+
 const THRESHOLD_LIMIT = parseInt(process.env.THRESHOLD_LIMIT || '100')
 
 async function logEntityThreshold(
@@ -55,7 +59,7 @@ async function logEntityThreshold(
           `nt-app-${address}`,
           'true',
           'EX',
-          remainingSecondsOnHour
+          remainingSecondsOnHour + EXCEEDED_TIME
         )
       }
     }
@@ -90,7 +94,11 @@ async function logEntityThreshold(
       )
 
       if (!cached) {
-        await redis.set(`nt-lb-${id}`, 'true', 'EX', remainingSecondsOnHour)
+        await redis.set(
+          `nt-lb-${id}`,
+          'true',
+          'EX',
+          remainingSecondsOnHour + EXCEEDED_TIME)
       }
     }
   }
