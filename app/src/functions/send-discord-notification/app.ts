@@ -64,9 +64,9 @@ function buildEmbedMessages(
         applicationName: name = '-',
         applicationPublicKey: publicKey,
         applicationAddress: adddress,
+        chains = ['-'],
         email = '-',
       } = logs[0]
-      const { chains = ['-'] } = logs[logs.length - 1]
 
       message.push(
         { name: 'Public Key', value: publicKey, inline: false },
@@ -97,11 +97,10 @@ function buildEmbedMessages(
         loadBalancerId: id,
         loadBalancerName: name,
         loadBalancerApps: apps,
+        chains = ['-'],
         email,
       } = logs[0]
 
-      // TODO: Remove after 7/9/2021 as all logs will have chains attached
-      const chains = logs[logs.length - 1].chains || ['-']
       message.push(
         { name: 'Email', value: email, inline: false },
         { name: 'ID', value: id, inline: true },
