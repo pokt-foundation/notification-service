@@ -41,7 +41,7 @@ export default function log(
 ): void {
   const log: Log = {
     timestamp: new Date().toISOString(),
-    hourstamp: getHoursFromNowUtcDate(1),
+    hourstamp: getHoursFromNowUtcDate(0),
     message,
     error,
     ...relayData,

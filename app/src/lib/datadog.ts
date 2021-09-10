@@ -1,5 +1,6 @@
 import axios, { AxiosResponse, AxiosError } from 'axios'
 import { DataDogResponse } from '../models/datadog'
+import { getTodayUtcDate, getYesterdayUtcDate } from './date-utils'
 import log from './logger'
 
 const AUTHENTICATION_HEADERS = {
@@ -30,10 +31,11 @@ export async function getQueryResults<T>(query: string): Promise<T[]> {
       'https://api.datadoghq.eu/api/v2/logs/events/search',
       {
         filter: {
-          from: 'now-1d',
+          // 24 hours before 18 UTC of today
+          from: getYesterdayUtcDate(),
 
           query: `service:notify-endpoint-usage ${query}`,
-          to: 'now',
+          to: getTodayUtcDate(),
         },
         options: {
           timeOffset: 0,
@@ -41,8 +43,8 @@ export async function getQueryResults<T>(query: string): Promise<T[]> {
         },
         ...(cursor
           ? {
-              page: { cursor },
-            }
+            page: { cursor },
+          }
           : undefined),
         sort: 'timestamp',
       }

@@ -11,6 +11,8 @@ import { formatNumber } from '../../utils/helpers'
 import { sendEmbedMessage, sendMessage, splitEmbeds } from '../../lib/discord'
 import { EmbedFieldData } from 'discord.js'
 
+const EMBED_VALUE_CHARACTERS_LIMIT = 1024
+
 type availableLogs = LoadBalancerLog | ApplicationLog
 
 /**
@@ -64,9 +66,9 @@ function buildEmbedMessages(
         applicationName: name = '-',
         applicationPublicKey: publicKey,
         applicationAddress: adddress,
+        chains = ['-'],
         email = '-',
       } = logs[0]
-      const { chains = ['-'] } = logs[logs.length - 1]
 
       message.push(
         { name: 'Public Key', value: publicKey, inline: false },
@@ -96,17 +98,21 @@ function buildEmbedMessages(
       const {
         loadBalancerId: id,
         loadBalancerName: name,
-        loadBalancerApps: apps,
+        loadBalancerApps,
+        chains = ['-'],
         email,
       } = logs[0]
 
-      // TODO: Remove after 7/9/2021 as all logs will have chains attached
-      const chains = logs[logs.length - 1].chains || ['-']
+      let apps = loadBalancerApps.join('\n')
+
+      if (apps.length > EMBED_VALUE_CHARACTERS_LIMIT) {
+        apps = `${apps.slice(0, 1020)}...`
+      }
       message.push(
         { name: 'Email', value: email, inline: false },
         { name: 'ID', value: id, inline: true },
         { name: 'Chains', value: chains.join('\n'), inline: false },
-        { name: 'Apps', value: apps.join('\n'), inline: false }
+        { name: 'Apps', value: apps, inline: false }
       )
       for (const log of logs) {
         const { relaysUsed, maxRelays, percentageUsed, hourstamp } = log
@@ -132,7 +138,7 @@ function buildEmbedMessages(
   return messages
 }
 
-async function getMaxUsageMsg(): Promise<EmbedFieldData[]> {
+async function buildMaxUsageMsg(): Promise<EmbedFieldData[]> {
   let dailyMaximum = {
     hour: '',
     apps: 0,
@@ -165,13 +171,55 @@ async function getMaxUsageMsg(): Promise<EmbedFieldData[]> {
   ]
 }
 
+function getTopUsedMsg(lbs: Map<string, LoadBalancerLog[]>, max: number) {
+  const lbMaximums = new Map<string, { name: string, maxRelaysUsed: number, maxRelaysAllowed: number }>()
+
+  for (const [_, logs] of lbs) {
+    const name = logs[0].loadBalancerName
+
+    lbMaximums.set(name, { name, maxRelaysAllowed: 0, maxRelaysUsed: 0 })
+    for (const log of logs) {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      const lb = lbMaximums.get(name)!
+      lb.maxRelaysAllowed += log.maxRelays
+      lb.maxRelaysUsed += log.relaysUsed
+      console.log('LB', lb)
+    }
+  }
+
+  const lbsArr = Array.from(lbMaximums, ([_, values]) => ({ ...values })).sort((a, b) => b.maxRelaysUsed - a.maxRelaysUsed);
+
+  const end = max <= lbsArr.length ? max : lbsArr.length
+  const top = lbsArr.slice(0, end)
+
+  const embed: EmbedFieldData[] = []
+
+  for (const lb of top) {
+    embed.push(
+      { name: 'Name', value: lb.name, inline: true },
+      {
+        name: 'Max daily Relays exceeded', value:
+          formatNumber(lb.maxRelaysUsed - lb.maxRelaysAllowed), inline: true
+      },
+      { name: '-', value: '-', inline: true })
+  }
+
+  return embed
+}
+
 exports.handler = async () => {
+  const lbOfApps = new Map<string, string>()
+
   const lbs = (
     await getQueryResults<LoadBalancerLog>('Load Balancer over 100 %')
-  ).map((lb) => ({ ...lb, id: lb.loadBalancerId }))
+  ).map((lb) => {
+    lb.loadBalancerApps.forEach(app => lbOfApps.set(app, lb.id))
+    return { ...lb, id: lb.loadBalancerId }
+  })
+
   const apps = (
     await getQueryResults<ApplicationLog>('Application over 100 %')
-  ).map((app) => ({ ...app, id: app.applicationAddress }))
+  ).map((app) => ({ ...app, id: app.applicationPublicKey }))
 
   const lbsResult = mapExceededThresholds(lbs)
   const appResult = mapExceededThresholds(apps)
@@ -184,6 +232,12 @@ exports.handler = async () => {
 
   const messagesToSend = []
   for (const [name, app] of appsMessages) {
+    // Don't publish apps belonging to a Load Balancer
+    const publicKey = app[0].value
+    if (lbOfApps.get(publicKey)) {
+      continue
+    }
+
     const embeds = splitEmbeds(app)
     for (const embed of embeds) {
       messagesToSend.push(sendEmbedMessage(`App: ${name}`, embed))
@@ -198,11 +252,14 @@ exports.handler = async () => {
 
   await Promise.allSettled(messagesToSend)
 
-  const maxUsage = await getMaxUsageMsg()
+  const maxUsage = await buildMaxUsageMsg()
   await sendEmbedMessage(
     'Time of day with maximum number of apps/lbs',
     maxUsage
   )
+
+  await sendEmbedMessage('Top Used Lbs',
+    getTopUsedMsg(lbsResult as Map<string, LoadBalancerLog[]>, 5))
 
   return { message: 'ok' }
 }
