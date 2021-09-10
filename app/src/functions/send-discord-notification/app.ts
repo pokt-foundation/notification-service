@@ -11,6 +11,8 @@ import { formatNumber } from '../../utils/helpers'
 import { sendEmbedMessage, sendMessage, splitEmbeds } from '../../lib/discord'
 import { EmbedFieldData } from 'discord.js'
 
+const EMBED_VALUE_CHARACTERS_LIMIT = 1024
+
 type availableLogs = LoadBalancerLog | ApplicationLog
 
 /**
@@ -96,16 +98,21 @@ function buildEmbedMessages(
       const {
         loadBalancerId: id,
         loadBalancerName: name,
-        loadBalancerApps: apps,
+        loadBalancerApps,
         chains = ['-'],
         email,
       } = logs[0]
 
+      let apps = loadBalancerApps.join('\n')
+
+      if (apps.length > EMBED_VALUE_CHARACTERS_LIMIT) {
+        apps = `${apps.slice(0, 1020)}...`
+      }
       message.push(
         { name: 'Email', value: email, inline: false },
         { name: 'ID', value: id, inline: true },
         { name: 'Chains', value: chains.join('\n'), inline: false },
-        { name: 'Apps', value: apps.join('\n'), inline: false }
+        { name: 'Apps', value: apps, inline: false }
       )
       for (const log of logs) {
         const { relaysUsed, maxRelays, percentageUsed, hourstamp } = log
