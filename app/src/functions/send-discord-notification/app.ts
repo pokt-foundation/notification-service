@@ -166,12 +166,18 @@ async function getMaxUsageMsg(): Promise<EmbedFieldData[]> {
 }
 
 exports.handler = async () => {
+  const lbOfApps = new Map<string, string>()
+
   const lbs = (
     await getQueryResults<LoadBalancerLog>('Load Balancer over 100 %')
-  ).map((lb) => ({ ...lb, id: lb.loadBalancerId }))
+  ).map((lb) => {
+    lb.loadBalancerApps.forEach(app => lbOfApps.set(app, lb.id))
+    return { ...lb, id: lb.loadBalancerId }
+  })
+
   const apps = (
     await getQueryResults<ApplicationLog>('Application over 100 %')
-  ).map((app) => ({ ...app, id: app.applicationAddress }))
+  ).map((app) => ({ ...app, id: app.applicationPublicKey }))
 
   const lbsResult = mapExceededThresholds(lbs)
   const appResult = mapExceededThresholds(apps)
@@ -184,6 +190,12 @@ exports.handler = async () => {
 
   const messagesToSend = []
   for (const [name, app] of appsMessages) {
+    // Don't publish apps belonging to an LB
+    const publicKey = app[0].value
+    if (lbOfApps.get(publicKey)) {
+      continue
+    }
+
     const embeds = splitEmbeds(app)
     for (const embed of embeds) {
       messagesToSend.push(sendEmbedMessage(`App: ${name}`, embed))
