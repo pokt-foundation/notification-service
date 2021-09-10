@@ -14,13 +14,12 @@ export function getHoursFromNowUtcDate(hoursAgo: number): string {
 
   const dayAgo = dayjs.utc().subtract(hoursAgo, 'hour')
 
-  const formattedTimestamp = `${dayAgo.year()}-0${dayAgo.month() + 1}-${dayAgo.date() < 10 ? `0${dayAgo.date()}` : dayAgo.date()
-    }T${dayAgo.hour() + 1 === 24
-      ? '00'
-      : dayAgo.hour() + 1 < 10
-        ? `0${dayAgo.hour() + 1}`
-        : dayAgo.hour() + 1
-    }:00:00+00:00`
+  const year = dayAgo.year()
+  const month = (dayAgo.month() + 1).toString().padStart(2, '0')
+  const day = (dayAgo.date()).toString().padStart(2, '0')
+  const hour = dayAgo.hour()
+
+  const formattedTimestamp = `${year}-${month}-${day}T${hour}:00:00+00:00`
 
   return formattedTimestamp
 }
@@ -43,10 +42,13 @@ export function getYesterdayUtcDate(): string {
 
   const yesterday = today.subtract(1, 'day')
 
-  const yesterdayBucket = `${yesterday.year()}-0${yesterday.month() + 1}-${yesterday.date() < 10 ? `0${yesterday.date()}` : today.date()
-    }T00:00:00+00:00`
+  const year = yesterday.year()
+  const month = (yesterday.month() + 1).toString().padStart(2, '0')
+  const day = (yesterday.date()).toString().padStart(2, '0')
 
-  return yesterdayBucket
+  const formattedTimestamp = `${year}-${month}-${day}T00:00:00+00:00`
+
+  return formattedTimestamp
 }
 
 export function getHourFromUtcDate(date: string): string {

@@ -4,7 +4,7 @@ import { getHoursFromNowUtcDate, getUTCTimestamp } from './date-utils'
 import log from './logger'
 
 const QUERY_START_TIME =
-  parseInt(process.env.INFLUX_QUERY_START_TIME ?? '') || 1
+  parseInt(process.env.INFLUX_QUERY_START_TIME ?? '') || 0
 
 const DEFAULT_INFLUX_TIMEOUT = 20000
 
