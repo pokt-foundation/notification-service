@@ -131,7 +131,7 @@ function buildEmbedMessages(
   return messages
 }
 
-async function getMaxUsageMsg(): Promise<EmbedFieldData[]> {
+async function buildMaxUsageMsg(): Promise<EmbedFieldData[]> {
   let dailyMaximum = {
     hour: '',
     apps: 0,
@@ -164,6 +164,42 @@ async function getMaxUsageMsg(): Promise<EmbedFieldData[]> {
   ]
 }
 
+function getTopUsedMsg(lbs: Map<string, LoadBalancerLog[]>, max: number) {
+  const lbMaximums = new Map<string, { name: string, maxRelaysUsed: number, maxRelaysAllowed: number }>()
+
+  for (const [_, logs] of lbs) {
+    const name = logs[0].loadBalancerName
+
+    lbMaximums.set(name, { name, maxRelaysAllowed: 0, maxRelaysUsed: 0 })
+    for (const log of logs) {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      const lb = lbMaximums.get(name)!
+      lb.maxRelaysAllowed += log.maxRelays
+      lb.maxRelaysUsed += log.relaysUsed
+      console.log('LB', lb)
+    }
+  }
+
+  const lbsArr = Array.from(lbMaximums, ([_, values]) => ({ ...values })).sort((a, b) => b.maxRelaysUsed - a.maxRelaysUsed);
+
+  const end = max <= lbsArr.length ? max : lbsArr.length
+  const top = lbsArr.slice(0, end)
+
+  const embed: EmbedFieldData[] = []
+
+  for (const lb of top) {
+    embed.push(
+      { name: 'Name', value: lb.name, inline: true },
+      {
+        name: 'Max daily Relays exceeded', value:
+          formatNumber(lb.maxRelaysUsed - lb.maxRelaysAllowed), inline: true
+      },
+      { name: '-', value: '-', inline: true })
+  }
+
+  return embed
+}
+
 exports.handler = async () => {
   const lbOfApps = new Map<string, string>()
 
@@ -189,7 +225,7 @@ exports.handler = async () => {
 
   const messagesToSend = []
   for (const [name, app] of appsMessages) {
-    // Don't publish apps belonging to an LB
+    // Don't publish apps belonging to a Load Balancer
     const publicKey = app[0].value
     if (lbOfApps.get(publicKey)) {
       continue
@@ -209,11 +245,14 @@ exports.handler = async () => {
 
   await Promise.allSettled(messagesToSend)
 
-  const maxUsage = await getMaxUsageMsg()
+  const maxUsage = await buildMaxUsageMsg()
   await sendEmbedMessage(
     'Time of day with maximum number of apps/lbs',
     maxUsage
   )
+
+  await sendEmbedMessage('Top Used Lbs',
+    getTopUsedMsg(lbsResult as Map<string, LoadBalancerLog[]>, 5))
 
   return { message: 'ok' }
 }
