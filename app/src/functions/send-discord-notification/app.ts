@@ -172,7 +172,10 @@ async function buildMaxUsageMsg(): Promise<EmbedFieldData[]> {
 }
 
 function getTopUsedMsg(lbs: Map<string, LoadBalancerLog[]>, max: number) {
-  const lbMaximums = new Map<string, { name: string, maxRelaysUsed: number, maxRelaysAllowed: number }>()
+  const lbMaximums = new Map<
+    string,
+    { name: string; maxRelaysUsed: number; maxRelaysAllowed: number }
+  >()
 
   for (const [_, logs] of lbs) {
     const name = logs[0].loadBalancerName
@@ -187,7 +190,9 @@ function getTopUsedMsg(lbs: Map<string, LoadBalancerLog[]>, max: number) {
     }
   }
 
-  const lbsArr = Array.from(lbMaximums, ([_, values]) => ({ ...values })).sort((a, b) => b.maxRelaysUsed - a.maxRelaysUsed);
+  const lbsArr = Array.from(lbMaximums, ([_, values]) => ({ ...values })).sort(
+    (a, b) => b.maxRelaysUsed - a.maxRelaysUsed
+  )
 
   const end = max <= lbsArr.length ? max : lbsArr.length
   const top = lbsArr.slice(0, end)
@@ -198,10 +203,12 @@ function getTopUsedMsg(lbs: Map<string, LoadBalancerLog[]>, max: number) {
     embed.push(
       { name: 'Name', value: lb.name, inline: true },
       {
-        name: 'Max daily Relays exceeded', value:
-          formatNumber(lb.maxRelaysUsed - lb.maxRelaysAllowed), inline: true
+        name: 'Exceeded relays',
+        value: formatNumber(lb.maxRelaysUsed - lb.maxRelaysAllowed),
+        inline: true,
       },
-      { name: '-', value: '-', inline: true })
+      { name: '-', value: '-', inline: true }
+    )
   }
 
   return embed
@@ -213,7 +220,7 @@ exports.handler = async () => {
   const lbs = (
     await getQueryResults<LoadBalancerLog>('Load Balancer over 100 %')
   ).map((lb) => {
-    lb.loadBalancerApps.forEach(app => lbOfApps.set(app, lb.id))
+    lb.loadBalancerApps.forEach((app) => lbOfApps.set(app, lb.id))
     return { ...lb, id: lb.loadBalancerId }
   })
 
@@ -221,13 +228,20 @@ exports.handler = async () => {
     await getQueryResults<ApplicationLog>('Application over 100 %')
   ).map((app) => ({ ...app, id: app.applicationPublicKey }))
 
+  const date = getTodayISODate()
+
+  if (apps.length == 0 && lbs.length == 0) {
+    await sendMessage(`No apps/lbs exceeded their relays on [${date}]`)
+
+    return
+  }
+
   const lbsResult = mapExceededThresholds(lbs)
   const appResult = mapExceededThresholds(apps)
 
   const appsMessages = buildEmbedMessages(appResult)
   const lbsMessages = buildEmbedMessages(lbsResult)
 
-  const date = getTodayISODate()
   await sendMessage(`Exceeded Application/Load Balancer Relays of [${date}]`)
 
   const messagesToSend = []
@@ -258,8 +272,9 @@ exports.handler = async () => {
     maxUsage
   )
 
-  await sendEmbedMessage('Top Used Lbs',
-    getTopUsedMsg(lbsResult as Map<string, LoadBalancerLog[]>, 5))
+  // FIXME: Calculations don't reflect actual real-world values
+  // await sendEmbedMessage('Top Greedy Lbs',
+  //   getTopUsedMsg(lbsResult as Map<string, LoadBalancerLog[]>, 5))
 
   return { message: 'ok' }
 }

@@ -14,10 +14,10 @@ import log from './logger'
 
 const blockTime = process.env.BLOCK_TIME
 
-const DEFAULT_DISPATCHER_LIST = 'https://peer-1.nodes.pokt.network:4201'
+const DEFAULT_DISPATCHER_LIST = 'https://peer-1.nodes.pokt.network:4200'
   .split(',')
   .map((uri) => new URL(uri))
-const DEFAULT_HTTP_PROVIDER_NODE = 'https://peer-1.nodes.pokt.network:4201/'
+const DEFAULT_HTTP_PROVIDER_NODE = 'https://peer-1.nodes.pokt.network:4200/'
 const DEFAULT_MAX_DISPATCHERS = 1
 const DEFAULT_MAX_SESSIONS = 1000000
 const DEFAULT_MAX_SESSION_RETRIES = 1
