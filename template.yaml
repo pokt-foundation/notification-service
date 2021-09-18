@@ -56,7 +56,7 @@ Parameters:
   
 Globals:
   Function:
-    Timeout: 60
+    Timeout: 120
 
 Resources:
   NotifyEndpointUsage:
