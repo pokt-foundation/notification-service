@@ -22,14 +22,12 @@ export function buildAppUsageQuery({
   stop: string
 }): string {
   return `
-total = from(bucket: "mainnetRelay10m")
+total = from(bucket: "mainnetRelayApp10m")
 |> range(start: ${start}, stop: ${stop})
 |> filter(fn: (r) =>
   r._measurement == "relay" and
-  r._field == "count" and
-  (r.method != "synccheck" and r.method != "chaincheck")
+  r._field == "count"
 )
-|> group(columns: ["host", "nodePublicKey", "region", "result", "method"])
 |> keep(columns: ["_value", "applicationPublicKey"])
 |> group(columns: ["applicationPublicKey"])
 |> sum()
@@ -39,6 +37,11 @@ total = from(bucket: "mainnetRelay10m")
 
 export async function getUsageData(): Promise<GetUsageDataQuery[]> {
   let usage: any[] = []
+
+  console.log('klk', {
+    start: getHoursFromNowUtcDate(QUERY_START_TIME),
+    stop: getUTCTimestamp(),
+  })
 
   try {
     usage = (await influx.collectRows(
