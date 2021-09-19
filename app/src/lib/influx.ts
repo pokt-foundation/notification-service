@@ -38,11 +38,6 @@ total = from(bucket: "mainnetRelayApp10m")
 export async function getUsageData(): Promise<GetUsageDataQuery[]> {
   let usage: any[] = []
 
-  console.log('klk', {
-    start: getHoursFromNowUtcDate(QUERY_START_TIME),
-    stop: getUTCTimestamp(),
-  })
-
   try {
     usage = (await influx.collectRows(
       buildAppUsageQuery({
