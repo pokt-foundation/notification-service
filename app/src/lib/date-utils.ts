@@ -27,12 +27,9 @@ export function getHoursFromNowUtcDate(hoursAgo: number): string {
 export function getTodayUtcDate(): string {
   dayjs.extend(dayJsutcPlugin)
 
-  const today = dayjs.utc()
+  const today = dayjs.utc().format()
 
-  const todayBucket = `${today.year()}-0${today.month() + 1}-${today.date() < 10 ? `0${today.date()}` : today.date()
-    }T00:00:00+00:00`
-
-  return todayBucket
+  return today
 }
 
 export function getYesterdayUtcDate(): string {

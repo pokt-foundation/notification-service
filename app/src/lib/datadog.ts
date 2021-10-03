@@ -43,8 +43,8 @@ export async function getQueryResults<T>(query: string): Promise<T[]> {
         },
         ...(cursor
           ? {
-              page: { cursor },
-            }
+            page: { cursor },
+          }
           : undefined),
         sort: 'timestamp',
       }
