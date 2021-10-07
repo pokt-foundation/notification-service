@@ -1,4 +1,4 @@
-# Pocket's Notification system
+# Pocket's Notification Service
 
 Monitor apps stake usage throughout the session time.
 
