@@ -54,7 +54,7 @@ Parameters:
     Type: String
     NoEcho: true
   DefaultDispatcherList:
-    Type: CommaDelimitedList
+    Type: String
     NoEcho: true
   
 Globals:
