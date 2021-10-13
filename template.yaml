@@ -53,6 +53,9 @@ Parameters:
   ChannelId:
     Type: String
     NoEcho: true
+  DefaultDispatcherList:
+    Type: CommaDelimitedList
+    NoEcho: true
   
 Globals:
   Function:
@@ -79,6 +82,7 @@ Resources:
           REDIS_HOST: !Ref RedisEndpoint
           REDIS_PORT: !Ref RedisPort
           MONGODB_CONN_STR: !Ref MongoDBConnectionString
+          DEFAULT_DISPATCHER_LIST: !Ref DefaultDispatcherList
       Policies:
         - "AWSLambdaVPCAccessExecutionRole"
       VpcConfig:
