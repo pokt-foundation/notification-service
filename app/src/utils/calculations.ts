@@ -39,6 +39,7 @@ async function logEntityThreshold(
       email,
       name,
       chains,
+      applicationID
     } = entity
     const cached = await redis.get(`nt-app-${address}`)
 
@@ -47,6 +48,7 @@ async function logEntityThreshold(
         applicationAddress: address,
         applicationPublicKey: publicKey,
         applicationName: name,
+        applicationID,
         relaysUsed,
         maxRelays,
         percentageUsed,
@@ -186,6 +188,7 @@ export async function getApplicationsUsage(
       status,
       relaysUsed,
       email,
+      applicationID: dbApp.id,
       name: dbApp.name,
       stakedTokens: Number(stakedTokens),
       maxRelays: Number(maxRelays),

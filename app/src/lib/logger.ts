@@ -10,6 +10,7 @@ export type Log = {
   loadBalancerId?: string
   loadBalancerName?: string
   loadBalancerApps?: string[]
+  applicationID?: string
   applicationAddress?: string
   applicationPublicKey?: string
   applicationName?: string
@@ -31,6 +32,7 @@ export default function log(
     loadBalancerName?: string
     loadBalancerApps?: string[]
     applicationName?: string
+    applicationID?: string
     maxRelays?: number
     relaysUsed?: number
     percentageUsed?: number

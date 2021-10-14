@@ -21,6 +21,7 @@ export type ApplicationData = {
   percentageUsed: number
   email?: string
   name: string
+  applicationID: string
 }
 
 type ActiveApplications = ApplicationData & { id: string }

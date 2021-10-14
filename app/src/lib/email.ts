@@ -21,6 +21,7 @@ export interface INotificationTemplate {
   usage: string
 }
 
+
 export default class MailgunService {
   private mailService: Mailgun
 

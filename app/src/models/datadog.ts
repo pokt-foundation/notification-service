@@ -64,6 +64,7 @@ export type ApplicationLog = EntityLog & {
   applicationAddress: string
   applicationPublicKey: string
   applicationName: string
+  applicationID: string
 }
 
 export type MaxUsage = EntityLog & {
