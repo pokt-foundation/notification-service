@@ -118,6 +118,7 @@ Resources:
           DD_APP_KEY: !Ref DataDogAppKey
           DISCORD_TOKEN: !Ref DiscordToken
           CHANNEL_ID: !Ref ChannelId
+          MONGODB_CONN_STR: !Ref MongoDBConnectionString
       Events:
         ScheduledEvent:
           Type: Schedule

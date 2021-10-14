@@ -10,6 +10,8 @@ import { getHourFromUtcDate, getTodayISODate } from '../../lib/date-utils'
 import { formatNumber } from '../../utils/helpers'
 import { sendEmbedMessage, sendMessage, splitEmbeds } from '../../lib/discord'
 import { EmbedFieldData } from 'discord.js'
+import LoadBalancerModel from '../../models/LoadBalancer'
+import connect from '../../lib/db'
 
 const EMBED_VALUE_CHARACTERS_LIMIT = 1024
 
@@ -68,9 +70,11 @@ function buildEmbedMessages(
         applicationAddress: adddress,
         chains = ['-'],
         email = '-',
+        applicationID
       } = logs[0]
 
       message.push(
+        { name: 'ID', value: applicationID, inline: false },
         { name: 'Public Key', value: publicKey, inline: false },
         { name: 'Chains', value: chains.join(', '), inline: false },
         { name: 'Address', value: adddress, inline: true },
@@ -215,12 +219,20 @@ function getTopUsedMsg(lbs: Map<string, LoadBalancerLog[]>, max: number) {
 }
 
 exports.handler = async () => {
+  await connect()
+
   const lbOfApps = new Map<string, string>()
 
+  const loadBalancers = await LoadBalancerModel.find()
+
+  loadBalancers.forEach(lb => lb.applicationIDs.forEach(app => lbOfApps.set(app, lb.id)))
+
+  for (const [key, value] of lbOfApps.entries()) {
+    console.log(key, value)
+  }
   const lbs = (
     await getQueryResults<LoadBalancerLog>('Load Balancer over 100 %')
   ).map((lb) => {
-    lb.loadBalancerApps.forEach((app) => lbOfApps.set(app, lb.id))
     return { ...lb, id: lb.loadBalancerId }
   })
 
@@ -247,8 +259,8 @@ exports.handler = async () => {
   const messagesToSend = []
   for (const [name, app] of appsMessages) {
     // Don't publish apps belonging to a Load Balancer
-    const publicKey = app[0].value
-    if (lbOfApps.get(publicKey)) {
+    const id = app[0].value
+    if (lbOfApps.get(id)) {
       continue
     }
 
