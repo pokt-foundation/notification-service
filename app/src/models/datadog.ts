@@ -22,23 +22,7 @@ export type DataDogResponse<T> = {
   }
 }
 
-export type Aws = {
-  firehose: { arn: string }
-  awslogs: {
-    owner: string
-    logStream: string
-    logGroup: string
-  }
-}
-
-export type Lambda = {
-  arn: string
-  request_id: string
-}
-
 export type LambdaLog = {
-  aws: Aws
-  lambda: Lambda
   id: string
   level: string
   timestamp: (string | number)[]
