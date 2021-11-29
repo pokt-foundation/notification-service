@@ -93,7 +93,7 @@ Resources:
         ScheduledEvent:
           Type: Schedule
           Properties:
-            Schedule: cron(0/5 * * * ? *)
+            Schedule: cron(55 * * * *)
             Enabled: True
             RetryPolicy:
               MaximumEventAgeInSeconds: 180
