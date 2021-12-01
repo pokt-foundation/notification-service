@@ -190,7 +190,6 @@ function getTopUsedMsg(lbs: Map<string, LoadBalancerLog[]>, max: number) {
       const lb = lbMaximums.get(name)!
       lb.maxRelaysAllowed += log.maxRelays
       lb.maxRelaysUsed += log.relaysUsed
-      console.log('LB', lb)
     }
   }
 
@@ -227,14 +226,17 @@ exports.handler = async () => {
 
   loadBalancers.forEach(lb => lb.applicationIDs.forEach(app => lbOfApps.set(app, lb.id)))
 
-  for (const [key, value] of lbOfApps.entries()) {
-    console.log(key, value)
-  }
   const lbs = (
     await getQueryResults<LoadBalancerLog>('Load Balancer over 100 %')
   ).map((lb) => {
     return { ...lb, id: lb.loadBalancerId }
   })
+
+  console.log('LOGS LB')
+  for (const [id, value] of Object.entries(lbs)) {
+
+    console.log(id, value)
+  }
 
   const apps = (
     await getQueryResults<ApplicationLog>('Application over 100 %')
@@ -244,7 +246,6 @@ exports.handler = async () => {
 
   if (apps.length == 0 && lbs.length == 0) {
     await sendMessage(`No apps/lbs exceeded their relays on [${date}]`)
-
     return
   }
 
@@ -260,7 +261,7 @@ exports.handler = async () => {
   for (const [name, app] of appsMessages) {
     // Don't publish apps belonging to a Load Balancer
     const id = app[0].value
-    if (lbOfApps.get(id)) {
+    if (!id || lbOfApps.get(id)) {
       continue
     }
 
