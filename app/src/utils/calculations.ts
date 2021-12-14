@@ -274,7 +274,18 @@ export async function getLoadBalancersUsage(
 
       extendedLBData.set(lbID, extendedLB)
     } else {
-      const email = await getUserEmail(userID.toString())
+      let email = ""
+
+      if (userID) {
+        email = await getUserEmail(userID.toString())
+      } else {
+        email = 'no user associated'
+        log('warn', 'LB does not have an user associated', undefined, {
+          loadBalancerId: lbID,
+          applicationID: dbApp._id
+        })
+      }
+
 
       // TODO: Change chain to chains when the Application schema is updated
       /// @ts-ignore
