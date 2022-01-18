@@ -1,8 +1,8 @@
-import Redis from 'ioredis'
+import Redis from 'ioredis-mock'
 
 const REDIS_HOST = process.env.REDIS_HOST || ''
 const REDIS_PORT = process.env.REDIS_PORT || ''
 
-const redis = new Redis(parseInt(REDIS_PORT), REDIS_HOST)
+const redis = new Redis()
 
 export default redis
