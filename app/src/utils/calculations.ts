@@ -38,12 +38,13 @@ async function logEntityThreshold(
       email,
       name,
       chains,
-      applicationID
+      applicationID,
+      dummy
     } = entity
     const cached = await redis.get(`nt-app-${address}`)
 
     if (!cached || remainingSecondsOnHour <= SECONDS_TO_RELOG) {
-      log('warn', `Application over ${THRESHOLD_LIMIT}% threshold`, undefined, {
+      log('warn', `Application over ${THRESHOLD_LIMIT}% threshold (Gigastake: ${Boolean(dummy)})`, undefined, {
         applicationAddress: address,
         applicationPublicKey: publicKey,
         applicationName: name,
@@ -74,13 +75,14 @@ async function logEntityThreshold(
       maxRelays,
       email,
       percentageUsed,
+      gigastake
     } = entity
     const cached = await redis.get(`nt-lb-${id}`)
 
     if (!cached || remainingSecondsOnHour <= SECONDS_TO_RELOG) {
       log(
         'warn',
-        `Load Balancer over ${THRESHOLD_LIMIT}% threshold`,
+        `Load Balancer over ${THRESHOLD_LIMIT}% threshold (Gigastake: ${Boolean(gigastake)})`,
         undefined,
         {
           loadBalancerId: id,
@@ -155,7 +157,9 @@ export async function getApplicationsUsage(
 
     let applicationData: ApplicationData
 
-    const { freeTierApplicationAccount: { address }, maxRelays, chain, dummy = true } = dbApp
+    const { freeTierApplicationAccount, publicPocketAccount, maxRelays, chain } = dbApp
+    const dummy = dbApp?.dummy || false
+    const address = freeTierApplicationAccount?.address ? freeTierApplicationAccount.address : publicPocketAccount?.address
 
     // Is part of gigastake, which only has a symbolic limit from the db
     if (dummy) {
@@ -198,6 +202,7 @@ export async function getApplicationsUsage(
         status,
         relaysUsed,
         email,
+        // @ts-ignore
         dummy,
         applicationID: dbApp.id,
         name: dbApp.name,
@@ -242,7 +247,7 @@ export async function getLoadBalancersUsage(
 
     const maxUnusedRelays = inactiveApps.reduce((acc, curr) => {
       const app = dbApps.get(curr)
-      if (app === undefined) {
+      if (app === undefined || app?.dummy === true) {
         return acc
       }
       const networkInfo = networkApps.get(
@@ -258,9 +263,9 @@ export async function getLoadBalancersUsage(
   }
 
   for (const app of appData) {
-    const { address, maxRelays, relaysUsed, chains } = app
+    const { maxRelays, relaysUsed, chains, publicKey } = app
 
-    const dbApp = dbApps.get(address)
+    const dbApp = dbApps.get(publicKey)
     if (dbApp === undefined) {
       continue
     }
@@ -275,6 +280,7 @@ export async function getLoadBalancersUsage(
     const lb = loadBalancers.get(lbId)!
 
     const { _id: lbID, user: userID, name, applicationIDs } = lb
+    const gigastake = lb?.gigastake || false
 
     if (extendedLBData.has(lbID)) {
       const extendedLB = extendedLBData.get(lbID) as ExtendedLoadBalancerData
@@ -307,6 +313,7 @@ export async function getLoadBalancersUsage(
         email,
         applicationIDs,
         id: lbID,
+        gigastake
       })
 
       const extendedLB = extendedLBData.get(lbID) as ExtendedLoadBalancerData
