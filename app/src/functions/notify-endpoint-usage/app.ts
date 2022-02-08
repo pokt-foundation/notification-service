@@ -52,7 +52,7 @@ exports.handler = async () => {
         'nt-applications'
       )
     ),
-    'freeTierApplicationAccount.address'
+    'freeTierApplicationAccount.publicKey'
   )
 
   const loadBalancers: Map<string, ILoadBalancer> = convertToMap(

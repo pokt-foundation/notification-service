@@ -47,6 +47,8 @@ export interface IApplication extends Document {
   notificationSettings: INotificationSettings
   createdAt?: Date | number
   updatedAt?: Date | number
+  maxRelays?: number,
+  dummy?: boolean,
   encryptPrivateKey: (privateKey: string) => string
   decryptPrivateKey: (privateKey: string) => string
   validateMetadata: ({

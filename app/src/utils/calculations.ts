@@ -7,7 +7,6 @@ import {
 } from '../models/types'
 import { IApplication } from '../models/Application'
 import { ILoadBalancer } from '../models/LoadBalancer'
-import { convertToMap } from './helpers'
 import log from '../lib/logger'
 import User from '../models/User'
 import redis from '../lib/redis'
@@ -107,7 +106,7 @@ async function logEntityThreshold(
   }
 }
 
-const calculateRelaysPercentage = (relays: number, maxRelays: number) =>
+const calculatePercentageOf = (relays: number, maxRelays: number) =>
   parseFloat(((relays / maxRelays) * 100).toFixed(2))
 
 const getUserEmail = async (id: string | undefined): Promise<string> => {
@@ -145,54 +144,67 @@ export async function getApplicationsUsage(
 ): Promise<ApplicationData[]> {
   const applicationsData: ApplicationData[] = []
 
-  const queryData = convertToMap(influxData, 'applicationPublicKey')
-
-  influxData.forEach(async (entry) => {
-    const networkApp = networkData.get(entry.applicationPublicKey)
-
-    if (networkApp === undefined) {
-      log(
-        'info',
-        `${entry.applicationPublicKey} does not have an associated LB`
-      )
+  influxData.forEach(async ({ applicationPublicKey: publicKey, relays: relaysUsed }) => {
+    const dbApp = dbApps.get(publicKey)
+    if (dbApp === undefined) {
+      log('error', `${publicKey} not found in the db`)
       return
     }
-
-    const {
-      publicKey,
-      address,
-      chains,
-      stakedTokens,
-      jailed,
-      status,
-      maxRelays,
-    } = networkApp
-
-    const appQuery = queryData.get(publicKey)
-    if (appQuery === undefined) {
-      log('error', `${address} not found in the db`)
-      return
-    }
-
-    const { relays: relaysUsed } = appQuery
-
-    const dbApp = dbApps.get(address) || <IApplication>{}
-
     const user = dbApp.user || ''
     const email = await getUserEmail(user.toString())
-    const applicationData: ApplicationData = {
-      publicKey,
-      address,
-      chains,
-      jailed,
-      status,
-      relaysUsed,
-      email,
-      applicationID: dbApp.id,
-      name: dbApp.name,
-      stakedTokens: Number(stakedTokens),
-      maxRelays: Number(maxRelays),
-      percentageUsed: calculateRelaysPercentage(relaysUsed, Number(maxRelays)),
+
+    let applicationData: ApplicationData
+
+    const { freeTierApplicationAccount: { address }, maxRelays, chain, dummy = true } = dbApp
+
+    // Is part of gigastake, which only has a symbolic limit from the db
+    if (dummy) {
+      applicationData = {
+        publicKey,
+        address,
+        chains: [chain],
+        relaysUsed,
+        email,
+        dummy,
+        applicationID: dbApp.id,
+        name: dbApp.name,
+        maxRelays: Number(maxRelays),
+        percentageUsed: calculatePercentageOf(relaysUsed, Number(maxRelays)),
+      }
+    } else {
+      const networkApp = networkData.get(publicKey)
+      if (networkApp === undefined) {
+        log(
+          'info',
+          `${publicKey} is not staked`
+        )
+        return
+      }
+
+      const {
+        address,
+        chains,
+        stakedTokens,
+        jailed,
+        status,
+        maxRelays,
+      } = networkApp
+
+      applicationData = {
+        publicKey,
+        address,
+        chains,
+        jailed,
+        status,
+        relaysUsed,
+        email,
+        dummy,
+        applicationID: dbApp.id,
+        name: dbApp.name,
+        stakedTokens: Number(stakedTokens),
+        maxRelays: Number(maxRelays),
+        percentageUsed: calculatePercentageOf(relaysUsed, Number(maxRelays)),
+      }
     }
 
     if (applicationData.percentageUsed > THRESHOLD_LIMIT) {
@@ -201,7 +213,6 @@ export async function getApplicationsUsage(
 
     applicationsData.push(applicationData)
   })
-
   return applicationsData
 }
 
@@ -314,7 +325,7 @@ export async function getLoadBalancersUsage(
     const lb = extendedLBData.get(id) as ExtendedLoadBalancerData
     lb.maxRelays += getInactiveAppRelays(lb)
     const { relaysUsed, maxRelays } = lb
-    lb.percentageUsed = calculateRelaysPercentage(relaysUsed, maxRelays)
+    lb.percentageUsed = calculatePercentageOf(relaysUsed, maxRelays)
 
     extendedLBData.set(id, lb)
 
