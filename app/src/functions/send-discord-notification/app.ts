@@ -70,11 +70,13 @@ function buildEmbedMessages(
         applicationAddress: adddress,
         chains = ['-'],
         email = '-',
-        applicationID
+        applicationID,
+        dummy = false
       } = logs[0]
 
       message.push(
         { name: 'ID', value: applicationID, inline: false },
+        { name: 'Dummy', value: dummy, inline: false },
         { name: 'Public Key', value: publicKey, inline: false },
         { name: 'Chains', value: chains.join(', '), inline: false },
         { name: 'Address', value: adddress, inline: true },
@@ -105,6 +107,8 @@ function buildEmbedMessages(
         loadBalancerApps,
         chains = ['-'],
         email,
+        gigastake = false,
+        gigastakeRedirect = false
       } = logs[0]
 
       let apps = loadBalancerApps.join('\n')
@@ -116,6 +120,8 @@ function buildEmbedMessages(
         { name: 'Email', value: email, inline: false },
         { name: 'ID', value: id, inline: true },
         { name: 'Chains', value: chains.join('\n'), inline: false },
+        { name: 'Gigastake', value: gigastake, inline: false },
+        { name: 'Gigastake redirect', value: gigastakeRedirect, inline: false },
         { name: 'Apps', value: apps, inline: false }
       )
       for (const log of logs) {
