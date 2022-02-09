@@ -24,5 +24,6 @@ export async function getModelFromDBOrCache<T>(
     throw err
   }
 
-  return result
+  // Return objects public fields removing metadata
+  return JSON.parse(JSON.stringify(result))
 }
