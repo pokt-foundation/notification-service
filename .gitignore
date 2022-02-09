@@ -43,5 +43,5 @@ coverage
 samconfig.toml
 
 # Logs
-lamba.txt
+lambda.txt
 log.txt
