@@ -42,6 +42,8 @@ export type LoadBalancerLog = EntityLog & {
   loadBalancerName: string
   loadBalancerApps: string[]
   loadBalancerId: string
+  gigastake: boolean
+  gigastakeRedirect: boolean
 }
 
 export type ApplicationLog = EntityLog & {
@@ -49,6 +51,7 @@ export type ApplicationLog = EntityLog & {
   applicationPublicKey: string
   applicationName: string
   applicationID: string
+  dummy: boolean
 }
 
 export type MaxUsage = EntityLog & {
