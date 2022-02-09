@@ -38,6 +38,9 @@ export default function log(
     percentageUsed?: number
     email?: string
     chains?: string[]
+    dummy?: boolean
+    gigastake?: boolean,
+    gigastakeRedirect?: boolean
   },
   additionalInfo?: object
 ): void {

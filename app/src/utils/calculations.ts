@@ -21,7 +21,7 @@ const SECONDS_TO_RELOG = 360 // 6 min
 // reindex the values of the next hour
 const EXCEEDED_TIME = 120 // 2 min
 
-const THRESHOLD_LIMIT = parseInt(process.env.THRESHOLD_LIMIT || '100')
+const THRESHOLD_LIMIT = parseFloat(process.env.THRESHOLD_LIMIT || '100')
 
 async function logEntityThreshold(
   entity: ApplicationData | ExtendedLoadBalancerData
@@ -44,7 +44,7 @@ async function logEntityThreshold(
     const cached = await redis.get(`nt-app-${address}`)
 
     if (!cached || remainingSecondsOnHour <= SECONDS_TO_RELOG) {
-      log('warn', `Application over ${THRESHOLD_LIMIT}% threshold (Gigastake: ${Boolean(dummy)})`, undefined, {
+      log('warn', `Application over ${THRESHOLD_LIMIT}% threshold (Dummy: ${Boolean(dummy)})`, undefined, {
         applicationAddress: address,
         applicationPublicKey: publicKey,
         applicationName: name,
@@ -54,6 +54,7 @@ async function logEntityThreshold(
         percentageUsed,
         email,
         chains,
+        dummy
       })
 
       if (!cached) {
@@ -75,14 +76,15 @@ async function logEntityThreshold(
       maxRelays,
       email,
       percentageUsed,
-      gigastake
+      gigastake,
+      gigastakeRedirect
     } = entity
     const cached = await redis.get(`nt-lb-${id}`)
 
     if (!cached || remainingSecondsOnHour <= SECONDS_TO_RELOG) {
       log(
         'warn',
-        `Load Balancer over ${THRESHOLD_LIMIT}% threshold (Gigastake: ${Boolean(gigastake)})`,
+        `Load Balancer over ${THRESHOLD_LIMIT}% threshold (Gigastake: ${Boolean(gigastake)} (GigastakeRedirect: ${Boolean(gigastakeRedirect)}))`,
         undefined,
         {
           loadBalancerId: id,
@@ -93,6 +95,8 @@ async function logEntityThreshold(
           percentageUsed,
           email,
           chains,
+          gigastake,
+          gigastakeRedirect
         }
       )
 
@@ -157,8 +161,7 @@ export async function getApplicationsUsage(
 
     let applicationData: ApplicationData
 
-    const { freeTierApplicationAccount, publicPocketAccount, maxRelays, chain } = dbApp
-    const dummy = dbApp?.dummy || false
+    const { freeTierApplicationAccount, publicPocketAccount, maxRelays, chain, dummy = false } = dbApp
     const address = freeTierApplicationAccount?.address ? freeTierApplicationAccount.address : publicPocketAccount?.address
 
     // Is part of gigastake, which only has a symbolic limit from the db
@@ -279,8 +282,7 @@ export async function getLoadBalancersUsage(
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const lb = loadBalancers.get(lbId)!
 
-    const { _id: lbID, user: userID, name, applicationIDs } = lb
-    const gigastake = lb?.gigastake || false
+    const { _id: lbID, user: userID, name, applicationIDs, gigastake = false, gigastakeRedirect = false } = lb
 
     if (extendedLBData.has(lbID)) {
       const extendedLB = extendedLBData.get(lbID) as ExtendedLoadBalancerData
@@ -313,7 +315,8 @@ export async function getLoadBalancersUsage(
         email,
         applicationIDs,
         id: lbID,
-        gigastake
+        gigastake,
+        gigastakeRedirect
       })
 
       const extendedLB = extendedLBData.get(lbID) as ExtendedLoadBalancerData

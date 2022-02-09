@@ -32,6 +32,7 @@ export type ExtendedLoadBalancerData = {
   userID: string | Types.ObjectId
   name: string
   gigastake?: boolean
+  gigastakeRedirect?: boolean
   applicationIDs: string[]
   percentageUsed: number
   maxRelays: number
