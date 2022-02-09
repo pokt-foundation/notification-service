@@ -13,15 +13,16 @@ export type ApplicationData = {
   publicKey: string
   address: string
   chains: string[]
-  stakedTokens: number
-  jailed: boolean
-  status: StakingStatus
+  stakedTokens?: number
+  jailed?: boolean
+  status?: StakingStatus
   maxRelays: number
   relaysUsed: number
   percentageUsed: number
   email?: string
   name: string
   applicationID: string
+  dummy: boolean
 }
 
 type ActiveApplications = ApplicationData & { id: string }
@@ -30,6 +31,8 @@ export type ExtendedLoadBalancerData = {
   id: string
   userID: string | Types.ObjectId
   name: string
+  gigastake?: boolean
+  gigastakeRedirect?: boolean
   applicationIDs: string[]
   percentageUsed: number
   maxRelays: number

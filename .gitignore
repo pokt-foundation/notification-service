@@ -41,3 +41,7 @@ coverage
 # AWS SAM output
 .aws-sam
 samconfig.toml
+
+# Logs
+lambda.txt
+log.txt

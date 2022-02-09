@@ -1,3 +1,0 @@
-START RequestId: bf1d7f3f-6744-4922-bac6-2983cf9dbdce Version: $LATEST
-END RequestId: bf1d7f3f-6744-4922-bac6-2983cf9dbdce
-REPORT RequestId: bf1d7f3f-6744-4922-bac6-2983cf9dbdce	Init Duration: 0.12 ms	Duration: 75925.10 ms	Billed Duration: 75926 ms	Memory Size: 500 MB	Max Memory Used: 500 MB	

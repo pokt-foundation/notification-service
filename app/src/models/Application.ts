@@ -1,6 +1,6 @@
 import { Schema, model, Model, Document, Types } from 'mongoose'
 
-export interface IFreeTierApplicationAccount {
+export interface IPocketAccount {
   address: string
   publicKey: string
   privateKey: string
@@ -41,12 +41,15 @@ export interface IApplication extends Document {
   freeTier: boolean
   status: string
   lastChangedStatusAt: Date | number
-  freeTierApplicationAccount: IFreeTierApplicationAccount
+  freeTierApplicationAccount: IPocketAccount
+  publicPocketAccount: IPocketAccount
   gatewayAAT: IGatewayAAT
   gatewaySettings: IGatewaySettings
   notificationSettings: INotificationSettings
   createdAt?: Date | number
   updatedAt?: Date | number
+  maxRelays?: number,
+  dummy?: boolean,
   encryptPrivateKey: (privateKey: string) => string
   decryptPrivateKey: (privateKey: string) => string
   validateMetadata: ({

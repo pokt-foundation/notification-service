@@ -7,7 +7,6 @@ import {
 } from '../models/types'
 import { IApplication } from '../models/Application'
 import { ILoadBalancer } from '../models/LoadBalancer'
-import { convertToMap } from './helpers'
 import log from '../lib/logger'
 import User from '../models/User'
 import redis from '../lib/redis'
@@ -22,7 +21,7 @@ const SECONDS_TO_RELOG = 360 // 6 min
 // reindex the values of the next hour
 const EXCEEDED_TIME = 120 // 2 min
 
-const THRESHOLD_LIMIT = parseInt(process.env.THRESHOLD_LIMIT || '100')
+const THRESHOLD_LIMIT = parseFloat(process.env.THRESHOLD_LIMIT || '100')
 
 async function logEntityThreshold(
   entity: ApplicationData | ExtendedLoadBalancerData
@@ -39,12 +38,13 @@ async function logEntityThreshold(
       email,
       name,
       chains,
-      applicationID
+      applicationID,
+      dummy
     } = entity
     const cached = await redis.get(`nt-app-${address}`)
 
     if (!cached || remainingSecondsOnHour <= SECONDS_TO_RELOG) {
-      log('warn', `Application over ${THRESHOLD_LIMIT}% threshold`, undefined, {
+      log('warn', `Application over ${THRESHOLD_LIMIT}% threshold (Dummy: ${Boolean(dummy)})`, undefined, {
         applicationAddress: address,
         applicationPublicKey: publicKey,
         applicationName: name,
@@ -54,6 +54,7 @@ async function logEntityThreshold(
         percentageUsed,
         email,
         chains,
+        dummy
       })
 
       if (!cached) {
@@ -75,13 +76,15 @@ async function logEntityThreshold(
       maxRelays,
       email,
       percentageUsed,
+      gigastake,
+      gigastakeRedirect
     } = entity
     const cached = await redis.get(`nt-lb-${id}`)
 
     if (!cached || remainingSecondsOnHour <= SECONDS_TO_RELOG) {
       log(
         'warn',
-        `Load Balancer over ${THRESHOLD_LIMIT}% threshold`,
+        `Load Balancer over ${THRESHOLD_LIMIT}% threshold (Gigastake: ${Boolean(gigastake)} (GigastakeRedirect: ${Boolean(gigastakeRedirect)}))`,
         undefined,
         {
           loadBalancerId: id,
@@ -92,6 +95,8 @@ async function logEntityThreshold(
           percentageUsed,
           email,
           chains,
+          gigastake,
+          gigastakeRedirect
         }
       )
 
@@ -107,7 +112,7 @@ async function logEntityThreshold(
   }
 }
 
-const calculateRelaysPercentage = (relays: number, maxRelays: number) =>
+const calculatePercentageOf = (relays: number, maxRelays: number) =>
   parseFloat(((relays / maxRelays) * 100).toFixed(2))
 
 const getUserEmail = async (id: string | undefined): Promise<string> => {
@@ -145,54 +150,69 @@ export async function getApplicationsUsage(
 ): Promise<ApplicationData[]> {
   const applicationsData: ApplicationData[] = []
 
-  const queryData = convertToMap(influxData, 'applicationPublicKey')
-
-  influxData.forEach(async (entry) => {
-    const networkApp = networkData.get(entry.applicationPublicKey)
-
-    if (networkApp === undefined) {
-      log(
-        'info',
-        `${entry.applicationPublicKey} does not have an associated LB`
-      )
+  influxData.forEach(async ({ applicationPublicKey: publicKey, relays: relaysUsed }) => {
+    const dbApp = dbApps.get(publicKey)
+    if (dbApp === undefined) {
+      log('error', `${publicKey} not found in the db`)
       return
     }
-
-    const {
-      publicKey,
-      address,
-      chains,
-      stakedTokens,
-      jailed,
-      status,
-      maxRelays,
-    } = networkApp
-
-    const appQuery = queryData.get(publicKey)
-    if (appQuery === undefined) {
-      log('error', `${address} not found in the db`)
-      return
-    }
-
-    const { relays: relaysUsed } = appQuery
-
-    const dbApp = dbApps.get(address) || <IApplication>{}
-
     const user = dbApp.user || ''
     const email = await getUserEmail(user.toString())
-    const applicationData: ApplicationData = {
-      publicKey,
-      address,
-      chains,
-      jailed,
-      status,
-      relaysUsed,
-      email,
-      applicationID: dbApp.id,
-      name: dbApp.name,
-      stakedTokens: Number(stakedTokens),
-      maxRelays: Number(maxRelays),
-      percentageUsed: calculateRelaysPercentage(relaysUsed, Number(maxRelays)),
+
+    let applicationData: ApplicationData
+
+    const { freeTierApplicationAccount, publicPocketAccount, maxRelays, chain, dummy = false } = dbApp
+    const address = freeTierApplicationAccount?.address ? freeTierApplicationAccount.address : publicPocketAccount?.address
+
+    // Is part of gigastake, which only has a symbolic limit from the db
+    if (dummy) {
+      applicationData = {
+        publicKey,
+        address,
+        chains: [chain],
+        relaysUsed,
+        email,
+        dummy,
+        applicationID: dbApp.id,
+        name: dbApp.name,
+        maxRelays: Number(maxRelays),
+        percentageUsed: calculatePercentageOf(relaysUsed, Number(maxRelays)),
+      }
+    } else {
+      const networkApp = networkData.get(publicKey)
+      if (networkApp === undefined) {
+        log(
+          'info',
+          `${publicKey} is not staked`
+        )
+        return
+      }
+
+      const {
+        address,
+        chains,
+        stakedTokens,
+        jailed,
+        status,
+        maxRelays,
+      } = networkApp
+
+      applicationData = {
+        publicKey,
+        address,
+        chains,
+        jailed,
+        status,
+        relaysUsed,
+        email,
+        // @ts-ignore
+        dummy,
+        applicationID: dbApp.id,
+        name: dbApp.name,
+        stakedTokens: Number(stakedTokens),
+        maxRelays: Number(maxRelays),
+        percentageUsed: calculatePercentageOf(relaysUsed, Number(maxRelays)),
+      }
     }
 
     if (applicationData.percentageUsed > THRESHOLD_LIMIT) {
@@ -201,7 +221,6 @@ export async function getApplicationsUsage(
 
     applicationsData.push(applicationData)
   })
-
   return applicationsData
 }
 
@@ -231,7 +250,7 @@ export async function getLoadBalancersUsage(
 
     const maxUnusedRelays = inactiveApps.reduce((acc, curr) => {
       const app = dbApps.get(curr)
-      if (app === undefined) {
+      if (app === undefined || app?.dummy === true) {
         return acc
       }
       const networkInfo = networkApps.get(
@@ -247,9 +266,9 @@ export async function getLoadBalancersUsage(
   }
 
   for (const app of appData) {
-    const { address, maxRelays, relaysUsed, chains } = app
+    const { maxRelays, relaysUsed, chains, publicKey } = app
 
-    const dbApp = dbApps.get(address)
+    const dbApp = dbApps.get(publicKey)
     if (dbApp === undefined) {
       continue
     }
@@ -263,7 +282,7 @@ export async function getLoadBalancersUsage(
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const lb = loadBalancers.get(lbId)!
 
-    const { _id: lbID, user: userID, name, applicationIDs } = lb
+    const { _id: lbID, user: userID, name, applicationIDs, gigastake = false, gigastakeRedirect = false } = lb
 
     if (extendedLBData.has(lbID)) {
       const extendedLB = extendedLBData.get(lbID) as ExtendedLoadBalancerData
@@ -296,6 +315,8 @@ export async function getLoadBalancersUsage(
         email,
         applicationIDs,
         id: lbID,
+        gigastake,
+        gigastakeRedirect
       })
 
       const extendedLB = extendedLBData.get(lbID) as ExtendedLoadBalancerData
@@ -314,7 +335,7 @@ export async function getLoadBalancersUsage(
     const lb = extendedLBData.get(id) as ExtendedLoadBalancerData
     lb.maxRelays += getInactiveAppRelays(lb)
     const { relaysUsed, maxRelays } = lb
-    lb.percentageUsed = calculateRelaysPercentage(relaysUsed, maxRelays)
+    lb.percentageUsed = calculatePercentageOf(relaysUsed, maxRelays)
 
     extendedLBData.set(id, lb)
 
