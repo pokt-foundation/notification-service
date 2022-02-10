@@ -150,11 +150,11 @@ export async function getApplicationsUsage(
 ): Promise<ApplicationData[]> {
   const applicationsData: ApplicationData[] = []
 
-  influxData.forEach(async ({ applicationPublicKey: publicKey, relays: relaysUsed }) => {
+  for (const { applicationPublicKey: publicKey, relays: relaysUsed } of influxData) {
     const dbApp = dbApps.get(publicKey)
     if (dbApp === undefined) {
       log('error', `${publicKey} not found in the db`)
-      return
+      continue
     }
     const user = dbApp.user || ''
     const email = await getUserEmail(user.toString())
@@ -185,7 +185,7 @@ export async function getApplicationsUsage(
           'info',
           `${publicKey} is not staked`
         )
-        return
+        continue
       }
 
       const {
@@ -220,7 +220,8 @@ export async function getApplicationsUsage(
     }
 
     applicationsData.push(applicationData)
-  })
+  }
+
   return applicationsData
 }
 
