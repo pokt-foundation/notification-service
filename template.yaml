@@ -56,7 +56,13 @@ Parameters:
   DefaultDispatcherList:
     Type: String
     NoEcho: true
-  
+  InfluxQueryStartTime:
+    Type: String
+    NoEcho: true
+  Region:
+    Type: String
+    NoEcho: True
+    
 Globals:
   Function:
     Timeout: 180
@@ -83,8 +89,13 @@ Resources:
           REDIS_PORT: !Ref RedisPort
           MONGODB_CONN_STR: !Ref MongoDBConnectionString
           DEFAULT_DISPATCHER_LIST: !Ref DefaultDispatcherList
+          REGION: !Ref Region
+          TABLE_NAME: !Ref GreedyApps
+          INFLUX_QUERY_START_TIME: !Ref InfluxQueryStartTime
       Policies:
         - "AWSLambdaVPCAccessExecutionRole"
+        - DynamoDBCrudPolicy:
+            TableName: !Ref GreedyApps
       VpcConfig:
         SecurityGroupIds: 
          - !Ref SecurityGroupID
@@ -128,6 +139,26 @@ Resources:
             RetryPolicy:
               MaximumEventAgeInSeconds: 180
               MaximumRetryAttempts: 3
+
+  GreedyApps:
+    Type: AWS::DynamoDB::Table
+    Properties: 
+      AttributeDefinitions: 
+        - AttributeName: id
+          AttributeType: S
+        - AttributeName: createdAt
+          AttributeType: S
+      KeySchema: 
+        - AttributeName: id
+          KeyType: HASH
+        - AttributeName: createdAt
+          KeyType: RANGE
+      ProvisionedThroughput: 
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      StreamSpecification:
+        StreamViewType: NEW_IMAGE
+
 Outputs:
   NotifyEndpointUsage:
     Description: "Notify Endpoint Usage Lambda Function ARN"
