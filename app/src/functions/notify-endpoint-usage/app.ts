@@ -13,6 +13,9 @@ import {
 import { getModelFromDBOrCache } from '../../utils/db'
 import { convertToMap } from '../../utils/helpers'
 import redis from '../../lib/redis'
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb'
+
+const dynamoClient = new DynamoDBClient({ region: process.env.REGION })
 
 const CACHE_TTL = parseInt(process.env.NETWORK_CACHE_TTL ?? '') || 3600
 
@@ -70,13 +73,19 @@ exports.handler = async () => {
     '_id'
   )
 
-  const appUsage = await getApplicationsUsage(networkApps, usage, apps)
+  const appUsage = await getApplicationsUsage(
+    networkApps,
+    usage,
+    apps,
+    dynamoClient
+  )
 
   const lbUsage = await getLoadBalancersUsage(
     appUsage,
     apps,
     loadBalancers,
-    networkApps
+    networkApps,
+    dynamoClient
   )
 
   log('info', 'successfully calculated usage', undefined, undefined, {

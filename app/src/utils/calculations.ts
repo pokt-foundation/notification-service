@@ -10,7 +10,11 @@ import { ILoadBalancer } from '../models/LoadBalancer'
 import log from '../lib/logger'
 import User from '../models/User'
 import redis from '../lib/redis'
-import { getSecondsForNextHour } from '../lib/date-utils'
+import { getHoursFromNowUtcDate, getSecondsForNextHour } from '../lib/date-utils'
+import { DynamoDBClient, PutItemCommand, PutItemCommandInput } from "@aws-sdk/client-dynamodb";
+import { marshall } from "@aws-sdk/util-dynamodb";
+
+const table = process.env.TABLE_NAME
 
 // Values are only log at most twice per hour, the first time they trigger and
 // within the last minutes of the variable, this is to not log the same warning many
@@ -24,9 +28,11 @@ const EXCEEDED_TIME = 120 // 2 min
 const THRESHOLD_LIMIT = parseFloat(process.env.THRESHOLD_LIMIT || '100')
 
 async function logEntityThreshold(
-  entity: ApplicationData | ExtendedLoadBalancerData
+  entity: ApplicationData | ExtendedLoadBalancerData,
+  dynamoClient: DynamoDBClient
 ) {
   const remainingSecondsOnHour = getSecondsForNextHour()
+  let dynamoInput: PutItemCommandInput | undefined = undefined
 
   if (isApplicationData(entity)) {
     const {
@@ -44,6 +50,41 @@ async function logEntityThreshold(
     const cached = await redis.get(`nt-app-${address}`)
 
     if (!cached || remainingSecondsOnHour <= SECONDS_TO_RELOG) {
+      console.log("APP INPUT", {
+        id: applicationID,
+        createdAt: getHoursFromNowUtcDate(0),
+        type: 'APP',
+        address,
+        publicKey,
+        name,
+        relaysUsed,
+        maxRelays,
+        percentageUsed,
+        email,
+        chains,
+        dummy,
+      })
+
+      dynamoInput = {
+        TableName: table,
+        Item: marshall({
+          id: applicationID,
+          createdAt: getHoursFromNowUtcDate(0),
+          type: 'APP',
+          address,
+          publicKey,
+          name,
+          relaysUsed,
+          maxRelays,
+          percentageUsed,
+          email,
+          chains,
+          dummy,
+        }, {
+          removeUndefinedValues: true
+        })
+      }
+
       log('warn', `Application over ${THRESHOLD_LIMIT}% threshold (Dummy: ${Boolean(dummy)})`, undefined, {
         applicationAddress: address,
         applicationPublicKey: publicKey,
@@ -82,6 +123,41 @@ async function logEntityThreshold(
     const cached = await redis.get(`nt-lb-${id}`)
 
     if (!cached || remainingSecondsOnHour <= SECONDS_TO_RELOG) {
+      console.log("LB INPUT", {
+        id,
+        type: 'LB',
+        createdAt: getHoursFromNowUtcDate(0),
+        name,
+        apps: activeApplications.map((app) => app.publicKey),
+        relaysUsed,
+        maxRelays,
+        percentageUsed,
+        email,
+        chains,
+        gigastake,
+        gigastakeRedirect
+      })
+
+      dynamoInput = {
+        TableName: table,
+        Item: marshall({
+          id,
+          type: 'LB',
+          createdAt: getHoursFromNowUtcDate(0),
+          name,
+          apps: activeApplications.map((app) => app.publicKey),
+          relaysUsed,
+          maxRelays,
+          percentageUsed,
+          email,
+          chains,
+          gigastake,
+          gigastakeRedirect
+        }, {
+          removeUndefinedValues: true
+        })
+      }
+
       log(
         'warn',
         `Load Balancer over ${THRESHOLD_LIMIT}% threshold (Gigastake: ${Boolean(gigastake)} (GigastakeRedirect: ${Boolean(gigastakeRedirect)}))`,
@@ -108,6 +184,15 @@ async function logEntityThreshold(
           remainingSecondsOnHour + EXCEEDED_TIME
         )
       }
+    }
+  }
+
+  if (dynamoInput !== undefined) {
+    try {
+      const results = await dynamoClient.send(new PutItemCommand(dynamoInput));
+      console.log("db results", results)
+    } catch (err) {
+      console.error(err)
     }
   }
 }
@@ -146,7 +231,8 @@ const getUserEmail = async (id: string | undefined): Promise<string> => {
 export async function getApplicationsUsage(
   networkData: Map<string, Application>,
   influxData: GetUsageDataQuery[],
-  dbApps: Map<string, IApplication>
+  dbApps: Map<string, IApplication>,
+  dynamoClient: DynamoDBClient
 ): Promise<ApplicationData[]> {
   const applicationsData: ApplicationData[] = []
 
@@ -173,7 +259,7 @@ export async function getApplicationsUsage(
         relaysUsed,
         email,
         dummy,
-        applicationID: dbApp.id,
+        applicationID: dbApp._id,
         name: dbApp.name,
         maxRelays: Number(maxRelays),
         percentageUsed: calculatePercentageOf(relaysUsed, Number(maxRelays)),
@@ -207,7 +293,7 @@ export async function getApplicationsUsage(
         email,
         // @ts-ignore
         dummy,
-        applicationID: dbApp.id,
+        applicationID: dbApp._id,
         name: dbApp.name,
         stakedTokens: Number(stakedTokens),
         maxRelays: Number(maxRelays),
@@ -216,7 +302,7 @@ export async function getApplicationsUsage(
     }
 
     if (applicationData.percentageUsed > THRESHOLD_LIMIT) {
-      logEntityThreshold(applicationData)
+      logEntityThreshold(applicationData, dynamoClient)
     }
 
     applicationsData.push(applicationData)
@@ -229,7 +315,8 @@ export async function getLoadBalancersUsage(
   appData: ApplicationData[],
   dbApps: Map<string, IApplication>,
   loadBalancers: Map<string, ILoadBalancer>,
-  networkApps: Map<string, Application>
+  networkApps: Map<string, Application>,
+  dynamoClient: DynamoDBClient
 ): Promise<Map<string, ExtendedLoadBalancerData>> {
   const extendedLBData: Map<string, ExtendedLoadBalancerData> = new Map<
     string,
@@ -341,7 +428,7 @@ export async function getLoadBalancersUsage(
     extendedLBData.set(id, lb)
 
     if (lb.percentageUsed > THRESHOLD_LIMIT) {
-      logEntityThreshold(lb)
+      logEntityThreshold(lb, dynamoClient)
     }
   }
 
