@@ -130,6 +130,10 @@ Resources:
           DISCORD_TOKEN: !Ref DiscordToken
           CHANNEL_ID: !Ref ChannelId
           MONGODB_CONN_STR: !Ref MongoDBConnectionString
+          TABLE_NAME: !Ref GreedyApps
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref GreedyApps
       Events:
         ScheduledEvent:
           Type: Schedule
@@ -143,6 +147,7 @@ Resources:
   GreedyApps:
     Type: AWS::DynamoDB::Table
     Properties: 
+      TableName: GreedyApps
       AttributeDefinitions: 
         - AttributeName: id
           AttributeType: S
