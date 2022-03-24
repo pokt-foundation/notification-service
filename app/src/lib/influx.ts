@@ -6,6 +6,8 @@ import log from './logger'
 const QUERY_START_TIME =
   parseInt(process.env.INFLUX_QUERY_START_TIME ?? '') || 0
 
+const BUCKET_NAME = process.env.BUCKET_NAME || ''
+
 const DEFAULT_INFLUX_TIMEOUT = 20000
 
 export const influx = new InfluxDB({
@@ -22,7 +24,7 @@ export function buildAppUsageQuery({
   stop: string
 }): string {
   return `
-total = from(bucket: "mainnetRelayApp10m")
+total = from(bucket: "${BUCKET_NAME}")
 |> range(start: ${start}, stop: ${stop})
 |> filter(fn: (r) =>
   r._measurement == "relay" and

@@ -62,7 +62,10 @@ Parameters:
   Region:
     Type: String
     NoEcho: True
-    
+  BucketName:
+    Type: String
+    NoEcho: True
+
 Globals:
   Function:
     Timeout: 180
@@ -92,6 +95,7 @@ Resources:
           REGION: !Ref Region
           TABLE_NAME: !Ref GreedyApps
           INFLUX_QUERY_START_TIME: !Ref InfluxQueryStartTime
+          BUCKET_NAME: !Ref BucketName
       Policies:
         - "AWSLambdaVPCAccessExecutionRole"
         - DynamoDBCrudPolicy:
@@ -139,7 +143,7 @@ Resources:
           Type: Schedule
           Properties:
             Schedule: cron(0 18 * * ? *)
-            Enabled: True
+            Enabled: False
             RetryPolicy:
               MaximumEventAgeInSeconds: 180
               MaximumRetryAttempts: 3

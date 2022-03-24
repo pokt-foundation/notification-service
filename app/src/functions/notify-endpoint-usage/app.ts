@@ -15,7 +15,7 @@ import { convertToMap } from '../../utils/helpers'
 import redis from '../../lib/redis'
 import { DynamoDBClient, PutItemCommand } from '@aws-sdk/client-dynamodb'
 import { marshall } from '@aws-sdk/util-dynamodb'
-import { getHoursFromNowUtcDate, getTodayISODate } from '../../lib/date-utils'
+import { getHoursFromNowUtcDate } from '../../lib/date-utils'
 
 const table = process.env.TABLE_NAME
 
