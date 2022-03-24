@@ -1,4 +1,3 @@
-import { getQueryResults } from '../../lib/datadog'
 import {
   ApplicationLog,
   isApplicationLog,
@@ -6,12 +5,29 @@ import {
   LoadBalancerLog,
   MaxUsage,
 } from '../../models/datadog'
-import { getHourFromUtcDate, getTodayISODate } from '../../lib/date-utils'
+import {
+  getHourFromUtcDate,
+  getTodayISODate,
+  getYesterdayISODate,
+} from '../../lib/date-utils'
 import { formatNumber } from '../../utils/helpers'
 import { sendEmbedMessage, sendMessage, splitEmbeds } from '../../lib/discord'
 import { EmbedFieldData } from 'discord.js'
 import LoadBalancerModel from '../../models/LoadBalancer'
 import connect from '../../lib/db'
+import log from '../../lib/logger'
+import {
+  AttributeValue,
+  DynamoDBClient,
+  ScanCommand,
+  ScanCommandInput,
+} from '@aws-sdk/client-dynamodb'
+import { DynamoData } from '../../models/types'
+import { unmarshall } from '@aws-sdk/util-dynamodb'
+
+const table = process.env.TABLE_NAME
+
+const dynamoClient = new DynamoDBClient({ region: process.env.REGION })
 
 const EMBED_VALUE_CHARACTERS_LIMIT = 1024
 
@@ -71,7 +87,7 @@ function buildEmbedMessages(
         chains = ['-'],
         email = '-',
         applicationID,
-        dummy = false
+        dummy = false,
       } = logs[0]
 
       message.push(
@@ -108,7 +124,7 @@ function buildEmbedMessages(
         chains = ['-'],
         email,
         gigastake = false,
-        gigastakeRedirect = false
+        gigastakeRedirect = false,
       } = logs[0]
 
       let apps = loadBalancerApps.join('\n')
@@ -155,12 +171,31 @@ async function buildMaxUsageMsg(): Promise<EmbedFieldData[]> {
     lbs: 0,
   }
 
-  const dailyMaxUsage = await getQueryResults<MaxUsage>(
-    'successfully calculated usage'
-  )
+  const maxAppsQuery: ScanCommandInput = {
+    TableName: table,
+    FilterExpression: 'id = :id AND begins_with (createdAt, :createdAt)',
+    ExpressionAttributeValues: {
+      ':createdAt': {
+        S: getYesterdayISODate(),
+      },
+      ':id': {
+        S: 'maxUsage'
+      }
+    },
+  }
 
-  for (const currHour of dailyMaxUsage) {
-    const { hourstamp: hour, maxApps, maxLbs } = currHour
+  let hourlyMaximums: MaxUsage[] = []
+
+  try {
+    const command = new ScanCommand(maxAppsQuery)
+    hourlyMaximums = (await dynamoClient.send(command)).Items?.map((it) => unmarshall(it) as MaxUsage) || []
+
+  } catch (err) {
+    log('error', `error getting max app usage: ${(err as Error).message}`)
+  }
+
+  for (const currHour of hourlyMaximums) {
+    const { createdAt: hour, maxApps, maxLbs } = currHour
     const { apps, lbs } = dailyMaximum
     if (maxApps > apps && maxLbs > lbs) {
       const newMaximum = {
@@ -181,48 +216,6 @@ async function buildMaxUsageMsg(): Promise<EmbedFieldData[]> {
   ]
 }
 
-function getTopUsedMsg(lbs: Map<string, LoadBalancerLog[]>, max: number) {
-  const lbMaximums = new Map<
-    string,
-    { name: string; maxRelaysUsed: number; maxRelaysAllowed: number }
-  >()
-
-  for (const [_, logs] of lbs) {
-    const name = logs[0].loadBalancerName
-
-    lbMaximums.set(name, { name, maxRelaysAllowed: 0, maxRelaysUsed: 0 })
-    for (const log of logs) {
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      const lb = lbMaximums.get(name)!
-      lb.maxRelaysAllowed += log.maxRelays
-      lb.maxRelaysUsed += log.relaysUsed
-    }
-  }
-
-  const lbsArr = Array.from(lbMaximums, ([_, values]) => ({ ...values })).sort(
-    (a, b) => b.maxRelaysUsed - a.maxRelaysUsed
-  )
-
-  const end = max <= lbsArr.length ? max : lbsArr.length
-  const top = lbsArr.slice(0, end)
-
-  const embed: EmbedFieldData[] = []
-
-  for (const lb of top) {
-    embed.push(
-      { name: 'Name', value: lb.name, inline: true },
-      {
-        name: 'Exceeded relays',
-        value: formatNumber(lb.maxRelaysUsed - lb.maxRelaysAllowed),
-        inline: true,
-      },
-      { name: '-', value: '-', inline: true }
-    )
-  }
-
-  return embed
-}
-
 exports.handler = async () => {
   await connect()
 
@@ -230,23 +223,111 @@ exports.handler = async () => {
 
   const loadBalancers = await LoadBalancerModel.find()
 
-  loadBalancers.forEach(lb => lb.applicationIDs.forEach(app => lbOfApps.set(app, lb.id)))
+  loadBalancers.forEach((lb) =>
+    lb.applicationIDs.forEach((app) => lbOfApps.set(app, lb.id))
+  )
 
-  const lbs = (
-    await getQueryResults<LoadBalancerLog>('Load Balancer over 100 %')
-  ).map((lb) => {
-    return { ...lb, id: lb.loadBalancerId }
-  })
+  let items: DynamoData[] = []
+  let lastEvaluatedKey:
+    | {
+      [key: string]: AttributeValue
+    }
+    | undefined = undefined
 
-  console.log('LOGS LB')
-  for (const [id, value] of Object.entries(lbs)) {
+  do {
+    const input: ScanCommandInput = {
+      TableName: table,
+      FilterExpression: 'begins_with (createdAt, :createdAt)',
+      ExpressionAttributeValues: {
+        ':createdAt': {
+          S: getYesterdayISODate(),
+        },
+      },
+      ExclusiveStartKey: lastEvaluatedKey,
+    }
+    try {
+      const command = new ScanCommand(input)
+      const response = await dynamoClient.send(command)
+      items = [
+        ...items,
+        ...(response.Items?.map((item) =>
+          unmarshall(item)
+        ) as unknown as DynamoData[]),
+      ]
+      lastEvaluatedKey = response.LastEvaluatedKey
+    } catch (err) {
+      log('error', `dynamo db error ${(err as Error).message}`)
+    }
+    // eslint-disable-next-line no-constant-condition
+  } while (lastEvaluatedKey)
 
-    console.log(id, value)
-  }
+  const lbs = items
+    .filter((it) => it.type === 'LB')
+    .map(
+      ({
+        id,
+        apps,
+        createdAt,
+        name,
+        gigastake,
+        gigastakeRedirect,
+        email,
+        relaysUsed,
+        maxRelays,
+        percentageUsed,
+        chains,
+      }) =>
+      ({
+        id: id,
+        level: 'info',
+        timestamp: createdAt,
+        hourstamp: createdAt,
+        relaysUsed,
+        maxRelays,
+        percentageUsed,
+        email,
+        chains,
+        loadBalancerName: name,
+        loadBalancerApps: apps,
+        loadBalancerId: id,
+        gigastake,
+        gigastakeRedirect,
+      } as LoadBalancerLog)
+    )
 
-  const apps = (
-    await getQueryResults<ApplicationLog>('Application over 100 %')
-  ).map((app) => ({ ...app, id: app.applicationPublicKey }))
+  const apps = items
+    .filter((it) => it.type === 'APP')
+    .map(
+      ({
+        id,
+        createdAt,
+        name,
+        email,
+        relaysUsed,
+        maxRelays,
+        percentageUsed,
+        chains,
+        address,
+        publicKey,
+        dummy,
+      }) =>
+      ({
+        id: id,
+        level: 'info',
+        timestamp: createdAt,
+        hourstamp: createdAt,
+        relaysUsed,
+        maxRelays,
+        percentageUsed,
+        email,
+        chains,
+        applicationAddress: address,
+        applicationName: name,
+        applicationPublicKey: publicKey,
+        applicationID: id,
+        dummy: dummy,
+      } as ApplicationLog)
+    )
 
   const date = getTodayISODate()
 
@@ -266,10 +347,10 @@ exports.handler = async () => {
   const messagesToSend = []
   for (const [name, app] of appsMessages) {
     // Don't publish apps belonging to a Load Balancer
-    const id = app[0].value
-    if (!id || lbOfApps.get(id)) {
-      continue
-    }
+    // const id = app[0].value
+    // if (!id || lbOfApps.get(id)) {
+    //   continue
+    // }
 
     const embeds = splitEmbeds(app)
     for (const embed of embeds) {

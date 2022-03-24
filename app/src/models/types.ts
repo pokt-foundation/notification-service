@@ -25,6 +25,24 @@ export type ApplicationData = {
   dummy: boolean
 }
 
+export type DynamoData = {
+  id: string
+  createdAt: string
+  type: 'APP' | 'LB'
+  address: string
+  publicKey: string
+  name: string
+  relaysUsed: number
+  maxRelays: number
+  percentageUsed: number
+  email: string
+  chains: string[]
+  dummy: boolean
+  apps: string[]
+  gigastake: boolean
+  gigastakeRedirect: boolean
+}
+
 type ActiveApplications = ApplicationData & { id: string }
 
 export type ExtendedLoadBalancerData = {

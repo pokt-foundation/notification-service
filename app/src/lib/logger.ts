@@ -39,7 +39,7 @@ export default function log(
     email?: string
     chains?: string[]
     dummy?: boolean
-    gigastake?: boolean,
+    gigastake?: boolean
     gigastakeRedirect?: boolean
   },
   additionalInfo?: object

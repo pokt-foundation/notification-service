@@ -13,7 +13,11 @@ import {
 import { getModelFromDBOrCache } from '../../utils/db'
 import { convertToMap } from '../../utils/helpers'
 import redis from '../../lib/redis'
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb'
+import { DynamoDBClient, PutItemCommand } from '@aws-sdk/client-dynamodb'
+import { marshall } from '@aws-sdk/util-dynamodb'
+import { getHoursFromNowUtcDate, getTodayISODate } from '../../lib/date-utils'
+
+const table = process.env.TABLE_NAME
 
 const dynamoClient = new DynamoDBClient({ region: process.env.REGION })
 
@@ -87,6 +91,27 @@ exports.handler = async () => {
     networkApps,
     dynamoClient
   )
+
+  const dynamoInput = {
+    TableName: table,
+    Item: marshall(
+      {
+        id: 'maxUsage',
+        createdAt: getHoursFromNowUtcDate(0),
+        maxLbs: lbUsage.size,
+        maxApps: appUsage.length,
+      },
+      {
+        removeUndefinedValues: true,
+      }
+    ),
+  }
+
+  try {
+    await dynamoClient.send(new PutItemCommand(dynamoInput))
+  } catch (err) {
+    log('error', `dynamodb error ${(err as Error).message}`)
+  }
 
   log('info', 'successfully calculated usage', undefined, undefined, {
     maxLbs: lbUsage.size,

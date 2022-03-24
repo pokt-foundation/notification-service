@@ -22,7 +22,7 @@ export interface ILoadBalancer extends Document {
   createdAt: Date | number
   updatedAt?: Date | number
   chain: string
-  gigastakeRedirect?: boolean,
+  gigastakeRedirect?: boolean
   gigastake?: boolean
 }
 

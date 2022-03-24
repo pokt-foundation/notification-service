@@ -25,8 +25,8 @@ export type DataDogResponse<T> = {
 export type LambdaLog = {
   id: string
   level: string
-  timestamp: (string | number)[]
-  message: string
+  timestamp: string | number
+  message?: string
   hourstamp: string
 }
 
@@ -54,7 +54,8 @@ export type ApplicationLog = EntityLog & {
   dummy: boolean
 }
 
-export type MaxUsage = EntityLog & {
+export type MaxUsage = {
+  createdAt: string
   maxApps: number
   maxLbs: number
 }

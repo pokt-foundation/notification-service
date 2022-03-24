@@ -1,7 +1,7 @@
 import dayjs from 'dayjs'
 import dayJsutcPlugin from 'dayjs/plugin/utc'
 
-const ISO_FORMAT = 'DD/MM/YYYY'
+const ISO_FORMAT = 'YYYY-MM-DD'
 
 export function getUTCTimestamp(): string {
   const timestamp = new Date()
@@ -30,6 +30,16 @@ export function getTodayUtcDate(): string {
   const today = dayjs.utc().format()
 
   return today
+}
+
+export function getYesterdayISODate(): string {
+  dayjs.extend(dayJsutcPlugin)
+
+  const today = dayjs.utc()
+
+  const yesterday = today.subtract(1, 'day')
+
+  return yesterday.format(ISO_FORMAT)
 }
 
 export function getYesterdayUtcDate(): string {

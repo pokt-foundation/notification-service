@@ -10,9 +10,16 @@ import { ILoadBalancer } from '../models/LoadBalancer'
 import log from '../lib/logger'
 import User from '../models/User'
 import redis from '../lib/redis'
-import { getHoursFromNowUtcDate, getSecondsForNextHour } from '../lib/date-utils'
-import { DynamoDBClient, PutItemCommand, PutItemCommandInput } from "@aws-sdk/client-dynamodb";
-import { marshall } from "@aws-sdk/util-dynamodb";
+import {
+  getHoursFromNowUtcDate,
+  getSecondsForNextHour,
+} from '../lib/date-utils'
+import {
+  DynamoDBClient,
+  PutItemCommand,
+  PutItemCommandInput,
+} from '@aws-sdk/client-dynamodb'
+import { marshall } from '@aws-sdk/util-dynamodb'
 
 const table = process.env.TABLE_NAME
 
@@ -45,58 +52,53 @@ async function logEntityThreshold(
       name,
       chains,
       applicationID,
-      dummy
+      dummy,
     } = entity
     const cached = await redis.get(`nt-app-${address}`)
 
     if (!cached || remainingSecondsOnHour <= SECONDS_TO_RELOG) {
-      console.log("APP INPUT", {
-        id: applicationID,
-        createdAt: getHoursFromNowUtcDate(0),
-        type: 'APP',
-        address,
-        publicKey,
-        name,
-        relaysUsed,
-        maxRelays,
-        percentageUsed,
-        email,
-        chains,
-        dummy,
-      })
-
       dynamoInput = {
         TableName: table,
-        Item: marshall({
-          id: applicationID,
-          createdAt: getHoursFromNowUtcDate(0),
-          type: 'APP',
-          address,
-          publicKey,
-          name,
+        Item: marshall(
+          {
+            id: applicationID,
+            createdAt: getHoursFromNowUtcDate(0),
+            type: 'APP',
+            address,
+            publicKey,
+            name,
+            relaysUsed,
+            maxRelays,
+            percentageUsed,
+            email,
+            chains,
+            dummy,
+          },
+          {
+            removeUndefinedValues: true,
+          }
+        ),
+      }
+
+      log(
+        'warn',
+        `Application over ${THRESHOLD_LIMIT}% threshold (Dummy: ${Boolean(
+          dummy
+        )})`,
+        undefined,
+        {
+          applicationAddress: address,
+          applicationPublicKey: publicKey,
+          applicationName: name,
+          applicationID,
           relaysUsed,
           maxRelays,
           percentageUsed,
           email,
           chains,
           dummy,
-        }, {
-          removeUndefinedValues: true
-        })
-      }
-
-      log('warn', `Application over ${THRESHOLD_LIMIT}% threshold (Dummy: ${Boolean(dummy)})`, undefined, {
-        applicationAddress: address,
-        applicationPublicKey: publicKey,
-        applicationName: name,
-        applicationID,
-        relaysUsed,
-        maxRelays,
-        percentageUsed,
-        email,
-        chains,
-        dummy
-      })
+        }
+      )
 
       if (!cached) {
         await redis.set(
@@ -118,49 +120,39 @@ async function logEntityThreshold(
       email,
       percentageUsed,
       gigastake,
-      gigastakeRedirect
+      gigastakeRedirect,
     } = entity
     const cached = await redis.get(`nt-lb-${id}`)
 
     if (!cached || remainingSecondsOnHour <= SECONDS_TO_RELOG) {
-      console.log("LB INPUT", {
-        id,
-        type: 'LB',
-        createdAt: getHoursFromNowUtcDate(0),
-        name,
-        apps: activeApplications.map((app) => app.publicKey),
-        relaysUsed,
-        maxRelays,
-        percentageUsed,
-        email,
-        chains,
-        gigastake,
-        gigastakeRedirect
-      })
-
       dynamoInput = {
         TableName: table,
-        Item: marshall({
-          id,
-          type: 'LB',
-          createdAt: getHoursFromNowUtcDate(0),
-          name,
-          apps: activeApplications.map((app) => app.publicKey),
-          relaysUsed,
-          maxRelays,
-          percentageUsed,
-          email,
-          chains,
-          gigastake,
-          gigastakeRedirect
-        }, {
-          removeUndefinedValues: true
-        })
+        Item: marshall(
+          {
+            id,
+            type: 'LB',
+            createdAt: getHoursFromNowUtcDate(0),
+            name,
+            apps: activeApplications.map((app) => app.publicKey),
+            relaysUsed,
+            maxRelays,
+            percentageUsed,
+            email,
+            chains,
+            gigastake,
+            gigastakeRedirect,
+          },
+          {
+            removeUndefinedValues: true,
+          }
+        ),
       }
 
       log(
         'warn',
-        `Load Balancer over ${THRESHOLD_LIMIT}% threshold (Gigastake: ${Boolean(gigastake)} (GigastakeRedirect: ${Boolean(gigastakeRedirect)}))`,
+        `Load Balancer over ${THRESHOLD_LIMIT}% threshold (Gigastake: ${Boolean(
+          gigastake
+        )} (GigastakeRedirect: ${Boolean(gigastakeRedirect)}))`,
         undefined,
         {
           loadBalancerId: id,
@@ -172,7 +164,7 @@ async function logEntityThreshold(
           email,
           chains,
           gigastake,
-          gigastakeRedirect
+          gigastakeRedirect,
         }
       )
 
@@ -189,10 +181,9 @@ async function logEntityThreshold(
 
   if (dynamoInput !== undefined) {
     try {
-      const results = await dynamoClient.send(new PutItemCommand(dynamoInput));
-      console.log("db results", results)
+      await dynamoClient.send(new PutItemCommand(dynamoInput))
     } catch (err) {
-      console.error(err)
+      log('error', `dynamodb error: ${(err as Error).message}`)
     }
   }
 }
@@ -236,7 +227,10 @@ export async function getApplicationsUsage(
 ): Promise<ApplicationData[]> {
   const applicationsData: ApplicationData[] = []
 
-  for (const { applicationPublicKey: publicKey, relays: relaysUsed } of influxData) {
+  for (const {
+    applicationPublicKey: publicKey,
+    relays: relaysUsed,
+  } of influxData) {
     const dbApp = dbApps.get(publicKey)
     if (dbApp === undefined) {
       log('error', `${publicKey} not found in the db`)
@@ -247,8 +241,16 @@ export async function getApplicationsUsage(
 
     let applicationData: ApplicationData
 
-    const { freeTierApplicationAccount, publicPocketAccount, maxRelays, chain, dummy = false } = dbApp
-    const address = freeTierApplicationAccount?.address ? freeTierApplicationAccount.address : publicPocketAccount?.address
+    const {
+      freeTierApplicationAccount,
+      publicPocketAccount,
+      maxRelays,
+      chain,
+      dummy = false,
+    } = dbApp
+    const address = freeTierApplicationAccount?.address
+      ? freeTierApplicationAccount.address
+      : publicPocketAccount?.address
 
     // Is part of gigastake, which only has a symbolic limit from the db
     if (dummy) {
@@ -267,21 +269,12 @@ export async function getApplicationsUsage(
     } else {
       const networkApp = networkData.get(publicKey)
       if (networkApp === undefined) {
-        log(
-          'info',
-          `${publicKey} is not staked`
-        )
+        log('info', `${publicKey} is not staked`)
         continue
       }
 
-      const {
-        address,
-        chains,
-        stakedTokens,
-        jailed,
-        status,
-        maxRelays,
-      } = networkApp
+      const { address, chains, stakedTokens, jailed, status, maxRelays } =
+        networkApp
 
       applicationData = {
         publicKey,
@@ -370,7 +363,14 @@ export async function getLoadBalancersUsage(
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const lb = loadBalancers.get(lbId)!
 
-    const { _id: lbID, user: userID, name, applicationIDs, gigastake = false, gigastakeRedirect = false } = lb
+    const {
+      _id: lbID,
+      user: userID,
+      name,
+      applicationIDs,
+      gigastake = false,
+      gigastakeRedirect = false,
+    } = lb
 
     if (extendedLBData.has(lbID)) {
       const extendedLB = extendedLBData.get(lbID) as ExtendedLoadBalancerData
@@ -381,7 +381,7 @@ export async function getLoadBalancersUsage(
 
       extendedLBData.set(lbID, extendedLB)
     } else {
-      let email = ""
+      let email = ''
 
       if (userID) {
         email = await getUserEmail(userID.toString())
@@ -389,10 +389,9 @@ export async function getLoadBalancersUsage(
         email = 'no user associated'
         log('warn', 'LB does not have an user associated', undefined, {
           loadBalancerId: lbID,
-          applicationID: dbApp._id
+          applicationID: dbApp._id,
         })
       }
-
 
       // TODO: Change chain to chains when the Application schema is updated
       /// @ts-ignore
@@ -404,7 +403,7 @@ export async function getLoadBalancersUsage(
         applicationIDs,
         id: lbID,
         gigastake,
-        gigastakeRedirect
+        gigastakeRedirect,
       })
 
       const extendedLB = extendedLBData.get(lbID) as ExtendedLoadBalancerData
