@@ -51,6 +51,6 @@
     "ioredis-mock": "^5.8.1",
     "lodash.get": "^4.4.2",
     "mailgun-js": "^0.22.0",
-    "mongoose": "^6.0.1"
+    "mongoose": "^6.4.6"
   }
 }
